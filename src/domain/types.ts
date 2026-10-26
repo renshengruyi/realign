@@ -83,6 +83,7 @@ export interface Settings {
   reminders: boolean;
   duskFilter: boolean; // warm, dimmer screen in the last hour before bed
   weighDay: number; // 0–6, the weekday to step on the scale
+  introDone?: boolean;
   updatedAt?: number;
 }
 

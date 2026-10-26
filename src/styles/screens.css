@@ -41,6 +41,17 @@
   }
 }
 
+.intro {
+  border-color: transparent;
+  background: var(--c-sleep-soft);
+}
+
+.intro svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--c-sleep);
+}
+
 .now-time {
   font-size: var(--t-2xl);
   font-weight: 700;

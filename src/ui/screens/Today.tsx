@@ -23,6 +23,9 @@ import {
   clock,
   dayOf,
   days,
+  loaded,
+  mergeDocument,
+  settings,
   notify,
   patchDay,
   profile,
@@ -60,6 +63,7 @@ export function TodayScreen() {
         </button>
       </TopBar>
       <Hero day={day} />
+      {loaded.value && !settings.value.introDone ? <IntroCard /> : null}
       <div class="today-grid">
         <div class="today-col">
           <SealsCard seals={seals} />
@@ -120,6 +124,44 @@ function Hero({ day }: { day: DayDoc | undefined }) {
 function askCoachPlan() {
   coachView.value = 'plan';
   go('coach');
+}
+
+// ---------------------------------------------------------------- first run
+
+function IntroCard() {
+  const steps: [string, string][] = [
+    ['sun', '每天两次打卡：早上记昨晚，晚上记今天，各一分钟。'],
+    ['moon', '夜里冲动来了，打开「今晚」点「冲动来了」，先等 5 分钟再决定。'],
+    ['pen', '懒得点表格时，在「一句话记录」里直接说，比如“午饭吃了 25 分钟，有点胀”。'],
+    ['practice', '「练习」里有暴露练习、午睡训练、冥想、慢慢吃和跟练。'],
+    ['coach', '「教练」读过你的资料和记录。每周日一起复盘，定下周的计划。'],
+  ];
+  return (
+    <section class="card intro" aria-label="开始使用">
+      <div class="section-head">
+        <h2>从这里开始</h2>
+      </div>
+      <ul class="stack" style={{ listStyle: 'none', marginTop: '10px' }}>
+        {steps.map(([icon, text]) => (
+          <li key={icon} class="row" style={{ alignItems: 'flex-start' }}>
+            <Icon name={icon} size={18} />
+            <span class="small">{text}</span>
+          </li>
+        ))}
+      </ul>
+      <p class="xs muted" style={{ marginTop: '10px' }}>
+        印章看的是你做没做，不看结果好不好。漏了一天也没关系，第二天接着来。
+      </p>
+      <div class="btn-row" style={{ marginTop: '12px' }}>
+        <button type="button" class="btn primary sm" onClick={() => void mergeDocument('settings/main', { introDone: true })}>
+          知道了
+        </button>
+        <button type="button" class="btn sm ghost" onClick={() => (coachView.value = 'plan', go('coach'))}>
+          先看本周计划
+        </button>
+      </div>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------- seals
