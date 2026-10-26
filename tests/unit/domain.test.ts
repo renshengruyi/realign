@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildContext, parseReply, sanitizePatch } from '../../src/domain/ai';
+import { buildContext, daysTable, parseReply, sanitizePatch } from '../../src/domain/ai';
 import { addDays, clockDelta, nightDateOf, rangeDates, weekStartOf } from '../../src/domain/dates';
 import { DEFAULT_RHYTHM, DEFAULT_TARGETS, templatePlan } from '../../src/domain/defaults';
 import {
@@ -206,5 +206,10 @@ describe('ai helpers', () => {
     expect(ctx).toContain('BMI 17.5');
     expect(ctx.split('\n').filter((l) => /^\d+\/\d+ 周/.test(l))).toHaveLength(14);
     expect(ctx.length).toBeLessThan(12000);
+  });
+
+  it('collapses runs of empty days', () => {
+    const t = daysTable({ '2026-10-26': { date: '2026-10-26', weightKg: 52.5 } }, '2026-10-13', '2026-10-26');
+    expect(t.split('\n')).toEqual(['10/13–10/25｜无记录（13 天）', '10/26 周一｜体重52.5kg']);
   });
 });

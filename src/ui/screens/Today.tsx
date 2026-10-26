@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { describePatch, quickLogPrompt, sanitizePatch } from '../../domain/ai';
-import { addDays, formatDate, greeting, hmToMin, minToHM, nowHM, nowMin, rangeDates, weekStartOf } from '../../domain/dates';
+import { addDays, formatDate, greeting, hmToMin, minToHM, nowHM, nowMin, rangeDates, weekday, weekStartOf } from '../../domain/dates';
 import { RHYTHM_KIND_LABEL } from '../../domain/defaults';
 import {
   computeSeals,
@@ -26,6 +26,7 @@ import {
   notify,
   patchDay,
   profile,
+  reviews,
   rhythm,
   targets,
   today,
@@ -39,7 +40,7 @@ import { Callout, Thinking } from '../components/controls';
 import { Icon } from '../components/Icon';
 import { Seal } from '../components/Seal';
 import { TopBar } from '../components/TopBar';
-import { askCoach, coachView, go, openSheet, openTool } from '../nav';
+import { askCoach, coachView, go, openSheet, openTool, reviewWeekHint } from '../nav';
 
 export function TodayScreen() {
   const date = today.value;
@@ -99,6 +100,12 @@ function Hero({ day }: { day: DayDoc | undefined }) {
           <Icon name="flag" />
           {plan.title}
         </button>
+        {plan.tasks.length ? (
+          <button type="button" class="pill" onClick={() => askCoachPlan()}>
+            <Icon name="list" />
+            本周任务 {plan.tasks.filter((x) => x.done).length}/{plan.tasks.length}
+          </button>
+        ) : null}
         {bits.length ? (
           <span class="pill">
             <Icon name="moon" />
@@ -226,14 +233,44 @@ function nightDate(): string {
 
 // ---------------------------------------------------------------- check-ins
 
+/** Sunday evening reviews this week; Monday reviews last week, if it has logs. */
+function dueReviewWeek(minute: number): string | null {
+  const date = today.value;
+  const wd = weekday(date);
+  const week = wd === 0 && minute >= 17 * 60 ? weekStartOf(date) : wd === 1 ? addDays(weekStartOf(date), -7) : null;
+  if (!week || reviews.value.some((r) => r.weekStart === week)) return null;
+  return computeWeekStats(week, allDays.value, targets.value).days > 0 ? week : null;
+}
+
 function CheckinCards({ day, minute }: { day: DayDoc | undefined; minute: number }) {
   const amDone = !!day?.sleep?.loggedAt;
   const pmDone = !!day?.eveningAt;
   const showAm = !amDone && minute >= 4 * 60;
   const showPm = !pmDone && minute >= 18 * 60;
-  if (!showAm && !showPm) return null;
+  const reviewWeek = dueReviewWeek(minute);
+  if (!showAm && !showPm && !reviewWeek) return null;
   return (
     <section class="stack" style={{ order: 3 }} aria-label="打卡">
+      {reviewWeek ? (
+        <button
+          type="button"
+          class="checkin"
+          onClick={() => {
+            reviewWeekHint.value = reviewWeek;
+            coachView.value = 'review';
+            go('coach');
+          }}
+        >
+          <span class="checkin-icon" data-k="review">
+            <Icon name="history" />
+          </span>
+          <span class="grow">
+            <b>每周复盘</b>
+            <span class="small muted">看看 {formatDate(reviewWeek)} 起这一周，一起定下周的计划</span>
+          </span>
+          <Icon name="chev-r" />
+        </button>
+      ) : null}
       {showAm ? (
         <button type="button" class="checkin" onClick={() => openSheet('checkin-am')}>
           <span class="checkin-icon" data-k="am">

@@ -129,10 +129,25 @@ export function dayLine(date: ISODate, d: DayDoc | undefined): string {
   return parts.length ? `${head}｜${parts.join('｜')}` : `${head}｜无记录`;
 }
 
+/** One line per day; a run of days with nothing logged becomes one line. */
 export function daysTable(days: DayMap, from: ISODate, to: ISODate): string {
-  return rangeDates(from, to)
-    .map((d) => dayLine(d, days[d]))
-    .join('\n');
+  const lines: string[] = [];
+  let gap: ISODate[] = [];
+  const flush = () => {
+    if (!gap.length) return;
+    lines.push(gap.length === 1 ? dayLine(gap[0], undefined) : `${shortDate(gap[0])}–${shortDate(gap[gap.length - 1])}｜无记录（${gap.length} 天）`);
+    gap = [];
+  };
+  for (const d of rangeDates(from, to)) {
+    const line = dayLine(d, days[d]);
+    if (line.endsWith('｜无记录')) gap.push(d);
+    else {
+      flush();
+      lines.push(line);
+    }
+  }
+  flush();
+  return lines.join('\n');
 }
 
 export function statsLine(s: WeekStats): string {

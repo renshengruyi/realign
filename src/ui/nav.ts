@@ -69,6 +69,8 @@ export function closeTool() {
 /** Text to drop into the coach's input when switching to the coach tab. */
 export const coachDraft = signal('');
 export const coachView = signal<'chat' | 'plan' | 'review' | 'memory'>('chat');
+/** The week the review view should open on, when something sent the person there. */
+export const reviewWeekHint = signal<string | null>(null);
 
 export function askCoach(text: string) {
   coachDraft.value = text;

@@ -31,7 +31,7 @@ import { Callout, Empty, Thinking } from '../components/controls';
 import { Icon } from '../components/Icon';
 import { Markdown } from '../components/Markdown';
 import { TopBar } from '../components/TopBar';
-import { coachDraft, coachView, go, openSheet } from '../nav';
+import { coachDraft, coachView, go, openSheet, reviewWeekHint } from '../nav';
 import { removePlanTask, togglePlanTask, addPlanTask } from '../planning';
 
 const VIEWS = [
@@ -473,7 +473,12 @@ function PlanView() {
 function ReviewView() {
   const thisWeek = weekStartOf(today.value);
   const lastWeek = addDays(thisWeek, -7);
-  const [week, setWeek] = useState(() => (reviews.value.some((r) => r.weekStart === lastWeek) ? thisWeek : lastWeek));
+  const [week, setWeek] = useState(() => {
+    const hint = reviewWeekHint.value;
+    reviewWeekHint.value = null;
+    if (hint === thisWeek || hint === lastWeek) return hint;
+    return reviews.value.some((r) => r.weekStart === lastWeek) ? thisWeek : lastWeek;
+  });
   const review = reviews.value.find((r) => r.weekStart === week);
   const stats = computeWeekStats(week, allDays.value, targets.value);
   const ready = aiReady();

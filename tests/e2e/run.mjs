@@ -131,7 +131,8 @@ if (!ONLY || ONLY === 'screens') {
 if (!ONLY || ONLY === 'today') {
   const t = await open({ time: '07:50' });
   const { page } = t;
-  await page.locator('.checkin').first().click();
+  check(await page.locator('.checkin', { hasText: '每周复盘' }).isVisible(), 'Monday shows the weekly review nudge');
+  await page.locator('.checkin', { hasText: '晨间打卡' }).click();
   await page.waitForSelector('.sheet');
   await shot(page, 'sheet-checkin-am-m-light');
   await page.getByRole('button', { name: '重铺次数增加' }).click();

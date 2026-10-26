@@ -94,6 +94,11 @@
   color: var(--warning);
 }
 
+.checkin-icon[data-k='review'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .checkin-icon[data-k='pm'] {
   background: var(--c-sleep-soft);
   color: var(--c-sleep);
