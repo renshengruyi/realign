@@ -1,0 +1,155 @@
+/* Layout concept: one plumb line. Content hangs in a single column from a
+   vertical day-axis; the desktop adds a side rail and a second column. */
+:root {
+  --bg: #edf2ee; /* celadon porcelain */
+  --surface: #fafcfa;
+  --surface-2: #f2f6f3;
+  --surface-3: #e6ece8;
+  --ink: #16201b;
+  --ink-2: #48544e;
+  --ink-3: #6f7b75;
+  --line: #d8e0db;
+  --line-strong: #bfcac4;
+  --primary: #233063; /* 黛 ink-navy */
+  --primary-ink: #ffffff;
+  --primary-soft: #e2e6f3;
+  --cinnabar: #b8432f; /* seal ink, used for the brand mark only */
+  --cinnabar-ink: #ffffff;
+
+  /* domain colors, validated as a categorical set (light surface) */
+  --c-sleep: #415cb2;
+  --c-food: #a6560a;
+  --c-move: #339c6d;
+  --c-calm: #7f4995;
+  --c-sleep-soft: #e3e8f6;
+  --c-food-soft: #f5e8dc;
+  --c-move-soft: #dff0e7;
+  --c-calm-soft: #efe4f3;
+
+  /* general series slots (reference categorical palette, first three) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+
+  --good: #0c7a0c;
+  --good-soft: #e1f1e0;
+  --warning: #9a6400;
+  --warning-mark: #fab219;
+  --warning-soft: #fbf0d6;
+  --critical: #b8322f;
+  --critical-soft: #f8e1df;
+
+  --scrim: rgba(16, 24, 20, 0.42);
+  --shadow: 0 1px 2px rgba(22, 32, 27, 0.06), 0 8px 24px rgba(22, 32, 27, 0.06);
+  --shadow-lift: 0 2px 6px rgba(22, 32, 27, 0.08), 0 18px 48px rgba(22, 32, 27, 0.14);
+  --focus: #3d5bd9;
+
+  --font-display: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Noto Sans CJK SC',
+    'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-md: 0.9375rem;
+  --t-lg: 1.0625rem;
+  --t-xl: 1.25rem;
+  --t-2xl: 1.5rem;
+  --t-3xl: 1.875rem;
+  --t-4xl: 2.5rem;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  --gap: 12px;
+  --gutter: 16px;
+  --nav-h: 64px;
+  --rail-w: 220px;
+  --content-w: 720px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0e1412;
+    --surface: #151c19;
+    --surface-2: #1b2420;
+    --surface-3: #232e29;
+    --ink: #e4ebe7;
+    --ink-2: #aab5af;
+    --ink-3: #85918b;
+    --line: #26302b;
+    --line-strong: #36423c;
+    --primary: #a9b7f2;
+    --primary-ink: #111833;
+    --primary-soft: #232c4d;
+    --cinnabar: #c9533c;
+    --cinnabar-ink: #ffffff;
+    --c-sleep: #516ec6;
+    --c-food: #ad5c15;
+    --c-move: #3aa273;
+    --c-calm: #915aa8;
+    --c-sleep-soft: #1f2846;
+    --c-food-soft: #35261a;
+    --c-move-soft: #183327;
+    --c-calm-soft: #2e2236;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --good: #43b843;
+    --good-soft: #17301a;
+    --warning: #f2b63d;
+    --warning-mark: #fab219;
+    --warning-soft: #3a2f15;
+    --critical: #ef6b67;
+    --critical-soft: #3c1d1c;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+    --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 48px rgba(0, 0, 0, 0.5);
+    --focus: #8fa2ff;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e1412;
+  --surface: #151c19;
+  --surface-2: #1b2420;
+  --surface-3: #232e29;
+  --ink: #e4ebe7;
+  --ink-2: #aab5af;
+  --ink-3: #85918b;
+  --line: #26302b;
+  --line-strong: #36423c;
+  --primary: #a9b7f2;
+  --primary-ink: #111833;
+  --primary-soft: #232c4d;
+  --cinnabar: #c9533c;
+  --cinnabar-ink: #ffffff;
+  --c-sleep: #516ec6;
+  --c-food: #ad5c15;
+  --c-move: #3aa273;
+  --c-calm: #915aa8;
+  --c-sleep-soft: #1f2846;
+  --c-food-soft: #35261a;
+  --c-move-soft: #183327;
+  --c-calm-soft: #2e2236;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --good: #43b843;
+  --good-soft: #17301a;
+  --warning: #f2b63d;
+  --warning-mark: #fab219;
+  --warning-soft: #3a2f15;
+  --critical: #ef6b67;
+  --critical-soft: #3c1d1c;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 48px rgba(0, 0, 0, 0.5);
+  --focus: #8fa2ff;
+  color-scheme: dark;
+}
