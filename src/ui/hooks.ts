@@ -13,10 +13,10 @@ export function useTick(active: boolean, ms = 250): number {
 
 /**
  * A pausable stopwatch driven by timestamps, so it stays right when the tab
- * sleeps in the background.
+ * sleeps in the background. With `autoStart` it counts from the first render.
  */
-export function useStopwatch() {
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+export function useStopwatch(autoStart = false) {
+  const [startedAt, setStartedAt] = useState<number | null>(() => (autoStart ? Date.now() : null));
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [pausedTotal, setPausedTotal] = useState(0);
   useTick(startedAt !== null && pausedAt === null, 250);

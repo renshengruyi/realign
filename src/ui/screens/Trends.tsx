@@ -25,7 +25,7 @@ type Range = 14 | 56 | 365;
 const RANGES: { value: Range; label: string }[] = [
   { value: 14, label: '近 2 周' },
   { value: 56, label: '近 8 周' },
-  { value: 365, label: '近一年' },
+  { value: 365, label: '近 1 年' },
 ];
 
 const n1 = (v: number | undefined) => (v === undefined ? '—' : String(round1(v)));
@@ -78,8 +78,12 @@ export function TrendsScreen() {
     values: view.slice(-28).map((d) => (all[d] ? computeSeals(all[d], t)[i].progress : undefined)),
   }));
 
-  const weeks = Array.from(new Set(view.map((d) => weekStartOf(d)))).sort().reverse().slice(0, 12);
-  const weekRows = weeks.map((w) => computeWeekStats(w, all, t));
+  const weekRows = Array.from(new Set(view.map((d) => weekStartOf(d))))
+    .sort()
+    .reverse()
+    .map((w) => computeWeekStats(w, all, t))
+    .filter((w) => w.days > 0)
+    .slice(0, 4);
 
   const has = (pts: { v?: number }[]) => pts.some((p) => p.v !== undefined);
 
@@ -183,7 +187,7 @@ export function TrendsScreen() {
 
           <ChartCard
             title={`体重（${unitLabel(unit)}）`}
-            sub={band ? `绿色带是 BMI 18.5–24 对应的体重：${band[0]}–${band[1]} ${unitLabel(unit)}` : '在档案里填身高，可以看到健康体重范围'}
+            sub={band ? `绿线以上是健康体重（约 ${Math.round(band[0])} ${unitLabel(unit)} 起）` : '在档案里填身高，可以看到健康体重范围'}
             table={{ head: ['日期', `体重（${unitLabel(unit)}）`], rows: weights.filter((w) => w.v !== undefined).reverse().map((w) => [shortDate(w.date), w.v as number]) }}
           >
             {hasWeight ? (
@@ -256,47 +260,48 @@ export function TrendsScreen() {
             {has(med) ? <ColumnChart data={med} color="var(--c-calm)" label="冥想" unit="分钟" target={t.meditationMin} format={(v) => String(Math.round(v))} /> : <NoData />}
           </ChartCard>
 
-          <section class="card stack span-2" aria-label="每周对比">
-            <div class="section-head">
-              <h2>每周对比</h2>
-            </div>
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>那一周</th>
-                    <th>有记录</th>
-                    <th>睡眠（时）</th>
-                    <th>重铺（次/晚）</th>
-                    <th>守住上限</th>
-                    <th>暴露练习</th>
-                    <th>胃部不适</th>
-                    <th>精力（早/午）</th>
-                    <th>力量训练</th>
-                    <th>冥想（分）</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weekRows.map((w) => (
-                    <tr key={w.weekStart}>
-                      <td>{shortDate(w.weekStart)} 起</td>
-                      <td>{w.days} 天</td>
-                      <td>{n1(w.sleepHours)}</td>
-                      <td>{n1(w.refitsAvg)}</td>
-                      <td>{w.refitNights ? `${w.capKeptNights}/${w.refitNights}` : '—'}</td>
-                      <td>{w.exposures}</td>
-                      <td>{n1(w.gutAvg)}</td>
-                      <td>
-                        {n1(w.energyAm)}/{n1(w.energyPm)}
-                      </td>
-                      <td>{w.exerciseSessions}</td>
-                      <td>{w.meditationMin}</td>
+          {weekRows.length ? (
+            <section class="card stack span-2" aria-label="每周对比">
+              <div class="section-head">
+                <h2>每周对比</h2>
+                <span class="small muted">最近 {weekRows.length} 个有记录的周</span>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table week-table">
+                  <thead>
+                    <tr>
+                      <th />
+                      {weekRows.map((w) => (
+                        <th key={w.weekStart}>{shortDate(w.weekStart)} 起</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  </thead>
+                  <tbody>
+                    {(
+                      [
+                        ['有记录', (w) => `${w.days} 天`],
+                        ['睡眠（小时）', (w) => n1(w.sleepHours)],
+                        ['重铺（次/晚）', (w) => n1(w.refitsAvg)],
+                        ['守住上限', (w) => (w.refitNights ? `${w.capKeptNights}/${w.refitNights} 晚` : '—')],
+                        ['暴露练习', (w) => `${w.exposures} 次`],
+                        ['胃部不适', (w) => n1(w.gutAvg)],
+                        ['精力（早上/下午）', (w) => `${n1(w.energyAm)}/${n1(w.energyPm)}`],
+                        ['力量训练', (w) => `${w.exerciseSessions} 次`],
+                        ['冥想', (w) => `${w.meditationMin} 分钟`],
+                      ] as [string, (w: (typeof weekRows)[number]) => string][]
+                    ).map(([label, f]) => (
+                      <tr key={label}>
+                        <th scope="row">{label}</th>
+                        {weekRows.map((w) => (
+                          <td key={w.weekStart}>{f(w)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </div>
       ) : null}
     </div>

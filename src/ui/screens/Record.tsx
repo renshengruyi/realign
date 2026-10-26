@@ -29,7 +29,10 @@ const STATUS: { value: CheckItem['status']; label: string }[] = [
   { value: 'skipped', label: '暂不做' },
 ];
 
-const PRIORITY = { high: '优先', medium: '尽快', low: '有空' } as const;
+const PRIORITY = { high: '先做', medium: '这个月', low: '有空' } as const;
+const BMI_LO = 14;
+const BMI_HI = 33;
+const bmiPos = (v: number) => Math.min(100, Math.max(0, ((v - BMI_LO) / (BMI_HI - BMI_LO)) * 100));
 
 export function RecordScreen() {
   return (
@@ -54,14 +57,19 @@ function ProfileCard() {
   const b = bmi(w?.kg, p.heightCm);
   const band = b ? bmiBand(b) : undefined;
   const age = ageFrom(p.birthYear);
-  const pos = b ? Math.min(100, Math.max(0, ((b - 14) / (33 - 14)) * 100)) : undefined;
+  const pos = b ? bmiPos(b) : undefined;
   return (
     <section class="card stack" aria-label="个人资料">
       <div class="section-head">
         <h2>我</h2>
-        <button type="button" class="link" onClick={() => openSheet('profile')}>
-          编辑
-        </button>
+        <div class="row">
+          <button type="button" class="link" onClick={() => openSheet('weight')}>
+            记体重
+          </button>
+          <button type="button" class="link" onClick={() => openSheet('profile')}>
+            编辑
+          </button>
+        </div>
       </div>
       <p class="soft">
         {[age ? `${age} 岁` : '', p.sex === 'male' ? '男' : p.sex === 'female' ? '女' : '', p.heightCm ? `${p.heightCm} cm` : '', w ? `${round1(kgTo(unit, w.kg))} ${unitLabel(unit)}（${shortDate(w.date)}）` : ''].filter(Boolean).join(' · ') ||
@@ -84,12 +92,12 @@ function ProfileCard() {
             </div>
             <span class="bmi-marker" style={{ left: `${pos}%` }} />
           </div>
-          <div class="row between xs muted num">
-            <span>14</span>
-            <span>18.5</span>
-            <span>24</span>
-            <span>27</span>
-            <span>33</span>
+          <div class="bmi-ticks" aria-hidden="true">
+            {[14, 18.5, 24, 27, 33].map((v) => (
+              <span key={v} style={{ left: `${bmiPos(v)}%` }}>
+                {v}
+              </span>
+            ))}
           </div>
           {p.goalWeightKg ? (
             <p class="xs muted">
@@ -139,12 +147,11 @@ function GoalsCard() {
             const u = g.metric === 'weightKg' ? unitLabel(unit) : g.unit;
             return (
               <li key={g.id} class="stack tight" style={{ padding: '10px 0' }}>
-                <div class="row between">
-                  <span style={{ fontWeight: 600 }}>{g.title}</span>
-                  <span class="small soft num">
-                    {show(g.baseline)} → <b>{show(cur)}</b> → {show(g.target)} {u}
-                  </span>
-                </div>
+                <span style={{ fontWeight: 600 }}>{g.title}</span>
+                <span class="small soft num">
+                  现在 <b>{show(cur)}</b> / 目标 {show(g.target)} {u}
+                  {g.baseline !== undefined ? <span class="muted">（起点 {show(g.baseline)}）</span> : null}
+                </span>
                 <div class="progress">
                   <i style={{ width: `${(prog ?? 0) * 100}%`, background: g.status === 'done' ? 'var(--good)' : 'var(--primary)' }} />
                 </div>
@@ -190,16 +197,16 @@ function CheckPlanCard() {
         </Callout>
       ) : null}
       <p class="small soft">
-        在台湾，一般先挂家医科说明整体情况，抽血和尿检通常可以当天做；需要时医生会转胃肠科、泌尿科或复健科。看诊时打开这一页，照着清单说就好。
+        在台湾，一般先挂家医科说明整体情况，抽血和尿检通常可以当天做；需要时医生会转胃肠肝胆科、泌尿科或复健科。看诊时打开这一页，照着清单说就好。
       </p>
       <div>
         {sorted.map((item) => (
           <div class="check-item" key={item.id}>
             <div class="row between wrap">
-              <span class="row">
+              <span class="row wrap">
                 <b>{item.title}</b>
                 <span class="pill">{item.dept}</span>
-                <span class={`pill ${item.priority === 'high' ? 'bad' : item.priority === 'medium' ? 'warn' : ''}`}>{PRIORITY[item.priority]}</span>
+                <span class={`pill${item.priority === 'high' ? ' primary' : ''}`}>{PRIORITY[item.priority]}</span>
               </span>
               <button type="button" class="icon-btn" aria-label={`编辑${item.title}`} onClick={() => openSheet('check-item', { id: item.id })}>
                 <Icon name="edit" />
@@ -213,7 +220,18 @@ function CheckPlanCard() {
                 ))}
               </ul>
             ) : null}
-            <Segmented quiet label={`${item.title}的状态`} options={STATUS} value={item.status} onChange={(v) => setStatus(item.id, v)} />
+            <select
+              class={`select status-select s-${item.status}`}
+              aria-label={`${item.title}的状态`}
+              value={item.status}
+              onChange={(e) => setStatus(item.id, (e.target as HTMLSelectElement).value as CheckItem['status'])}
+            >
+              {STATUS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
             {item.date || item.note ? (
               <p class="xs muted">
                 {item.date ? `${item.status === 'done' ? '完成于' : '预约在'} ${formatDate(item.date)}` : ''}
@@ -240,7 +258,9 @@ function CheckupsCard() {
       {list.length ? (
         <ul class="list">
           {list.map((r) => {
-            const flagged = r.results.filter((x) => x.flag === 'H' || x.flag === 'L').length;
+            const lo = r.results.filter((x) => x.flag === 'L').length;
+            const hi = r.results.filter((x) => x.flag === 'H').length;
+            const off = [hi ? `${hi} 项偏高` : '', lo ? `${lo} 项偏低` : ''].filter(Boolean).join('、');
             return (
               <li key={r.id}>
                 <button type="button" class="list-row" style={{ width: '100%', border: 0, background: 'none', textAlign: 'left', color: 'inherit' }} onClick={() => openSheet('checkup-view', { id: r.id })}>
@@ -249,10 +269,12 @@ function CheckupsCard() {
                     <span style={{ fontWeight: 600 }}>{r.title}</span>
                     <span class="xs muted" style={{ display: 'block' }}>
                       {formatDate(r.date, { year: true })}
-                      {r.place ? ` · ${r.place}` : ''} · {r.results.length} 项
+                      {r.place ? ` · ${r.place}` : ''}
+                    </span>
+                    <span class="xs soft" style={{ display: 'block' }}>
+                      共 {r.results.length} 项{off ? `，${off}` : r.results.length ? '，都在参考范围内' : ''}
                     </span>
                   </span>
-                  {flagged ? <span class="pill bad">{flagged} 项异常</span> : r.results.length ? <span class="pill good">无异常标记</span> : null}
                   <Icon name="chev-r" size={18} />
                 </button>
               </li>
@@ -384,19 +406,20 @@ function SettingsCard() {
         </div>
         <div class="stack tight">
           <span class="small soft">每周称重日</span>
-          <Segmented
-            label="称重日"
-            options={[1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: d, label: '日一二三四五六'[d] }))}
-            value={s.weighDay}
-            onChange={(v) => set({ weighDay: v })}
-          />
+          <select class="select" style={{ width: 'auto' }} aria-label="称重日" value={s.weighDay} onChange={(e) => set({ weighDay: Number((e.target as HTMLSelectElement).value) })}>
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+              <option key={d} value={d}>
+                周{'日一二三四五六'[d]}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <hr class="divider" />
       <div class="stack tight">
         <p class="small soft">
           {mode.value === 'cloud'
-            ? '数据存在这个页面自己的私有数据库里，只有你能读写；分享链接给别人，他们也看不到你的记录。'
+            ? '数据只存在你的账号里，只有你能看和改；就算把链接分享给别人，他们也看不到你的记录。'
             : '现在是本机模式：数据只存在这个浏览器里。在 claude.ai 里打开这个页面，数据才会保存到你的账号。'}
         </p>
         <div class="btn-row">

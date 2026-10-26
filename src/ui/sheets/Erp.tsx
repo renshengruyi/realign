@@ -33,7 +33,7 @@ export function HierarchySheet() {
       }
     >
       <div class="stack">
-        <p class="small soft">把会引发不适感的接触情境都写下来，各打一个 0–100 的难受分。这是后面暴露练习的地图。</p>
+        <p class="small soft">把会引发不适感的接触情境都写下来，各打一个 0–10 的难受分。这是后面暴露练习的地图。</p>
         <ul class="list">
           {list.map((x) => (
             <li key={x.id} class="stack tight" style={{ padding: '10px 0' }}>
@@ -48,7 +48,7 @@ export function HierarchySheet() {
                   value={x.score ?? ''}
                   onInput={(e) => {
                     const v = Number((e.target as HTMLInputElement).value);
-                    upd(x.id, { score: (e.target as HTMLInputElement).value === '' || !Number.isFinite(v) ? undefined : Math.max(0, Math.min(100, Math.round(v))) });
+                    upd(x.id, { score: (e.target as HTMLInputElement).value === '' || !Number.isFinite(v) ? undefined : Math.max(0, Math.min(10, Math.round(v))) });
                   }}
                 />
                 <button type="button" class="icon-btn" aria-label="删除" onClick={() => setList((l) => l.filter((y) => y.id !== x.id))}>
@@ -60,7 +60,7 @@ export function HierarchySheet() {
                   [
                     ['todo', '未开始'],
                     ['practicing', '练习中'],
-                    ['done', '已掌握'],
+                    ['done', '已适应'],
                   ] as const
                 ).map(([v, l]) => (
                   <button type="button" key={v} aria-pressed={x.status === v} onClick={() => upd(x.id, { status: v })}>

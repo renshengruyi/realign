@@ -41,15 +41,15 @@ describe('dates', () => {
 
 describe('units', () => {
   it('converts jin at 500 g', () => {
-    expect(toKg('jin', 105)).toBe(52.5);
-    expect(kgTo('jin', 52.5)).toBe(105);
+    expect(toKg('jin', 120)).toBe(60);
+    expect(kgTo('jin', 60)).toBe(120);
   });
 
   it('computes BMI and the healthy range', () => {
-    expect(bmi(52.5, 173)!).toBeCloseTo(17.54, 2);
-    const [lo, hi] = healthyWeightRange(173);
-    expect(lo).toBeCloseTo(55.4, 1);
-    expect(hi).toBeCloseTo(71.8, 1);
+    expect(bmi(50, 170)!).toBeCloseTo(17.3, 2);
+    const [lo, hi] = healthyWeightRange(170);
+    expect(lo).toBeCloseTo(53.5, 1);
+    expect(hi).toBeCloseTo(69.4, 1);
   });
 });
 
@@ -108,7 +108,7 @@ describe('rhythm', () => {
 
   it('finds the current and next item', () => {
     const items = DEFAULT_RHYTHM;
-    const now = rhythmNow(items, undefined, 13 * 60 + 20);
+    const now = rhythmNow(items, undefined, 13 * 60 + 40);
     expect(now.current?.id).toBe('r-nap');
     expect(now.next?.id).toBe('r-focus-pm');
   });
@@ -128,7 +128,7 @@ function sampleDays(n: number, end = '2026-10-25'): DayMap {
       erp: [
         { id: `e${i}`, kind: 'exposure', startedAt: 0, durationSec: 900, plannedMin: 15, predicted: 8, ratings: [{ t: 0, v: 6 }, { t: 150, v: 5 }, { t: 900, v: 3 }], completed: true },
       ],
-      weightKg: i === 0 ? 52.5 : i === n - 1 ? 53.6 : undefined,
+      weightKg: i === 0 ? 50 : i === n - 1 ? 51.1 : undefined,
     };
   });
   return out;
@@ -144,7 +144,7 @@ describe('weekly stats and insights', () => {
     expect(s.refitNights).toBe(7);
     expect(s.capKeptNights).toBe(3); // days 8, 10, 12 of the sample are the good nights
     expect(s.predictionGap).toBeCloseTo(2);
-    expect(s.weightKg).toBe(53.6);
+    expect(s.weightKg).toBe(51.1);
   });
 
   it('compares groups of days', () => {
@@ -161,7 +161,7 @@ describe('weekly stats and insights', () => {
   });
 
   it('raises care signals', () => {
-    const sig = careSignals(days, '2026-10-25', 173, '2026-09-21').map((s) => s.id);
+    const sig = careSignals(days, '2026-10-25', 170, '2026-09-21').map((s) => s.id);
     expect(sig).toContain('bmi');
     expect(sig).toContain('gut');
   });
@@ -182,14 +182,14 @@ describe('ai helpers', () => {
   });
 
   it('rejects out-of-range values', () => {
-    expect(sanitizePatch({ sleep: { refits: -1, maxDiscomfort: 11, bedtime: '7:05' }, mood: 9, weightKg: 52.5 })).toEqual({ sleep: { bedtime: '07:05' }, weightKg: 52.5 });
+    expect(sanitizePatch({ sleep: { refits: -1, maxDiscomfort: 11, bedtime: '7:05' }, mood: 9, weightKg: 50 })).toEqual({ sleep: { bedtime: '07:05' }, weightKg: 50 });
   });
 
   it('builds a bounded context', () => {
     const ctx = buildContext({
       today: '2026-10-26',
       nowHM: '09:00',
-      profile: { weightUnit: 'jin', conditions: [{ id: 'c', name: '慢性胃炎', status: 'active' }], birthYear: 1996, heightCm: 173 },
+      profile: { weightUnit: 'jin', conditions: [{ id: 'c', name: '过敏性鼻炎', status: 'active' }], birthYear: 1990, heightCm: 170 },
       plan: templatePlan('2026-10-26', 0),
       targets: DEFAULT_TARGETS,
       goals: [],
@@ -200,16 +200,16 @@ describe('ai helpers', () => {
       checkups: [],
       triggers: [],
       rituals: [],
-      latestWeightKg: 52.5,
+      latestWeightKg: 50,
     });
-    expect(ctx).toContain('慢性胃炎');
-    expect(ctx).toContain('BMI 17.5');
+    expect(ctx).toContain('过敏性鼻炎');
+    expect(ctx).toContain('BMI 17.3');
     expect(ctx.split('\n').filter((l) => /^\d+\/\d+ 周/.test(l))).toHaveLength(14);
     expect(ctx.length).toBeLessThan(12000);
   });
 
   it('collapses runs of empty days', () => {
-    const t = daysTable({ '2026-10-26': { date: '2026-10-26', weightKg: 52.5 } }, '2026-10-13', '2026-10-26');
-    expect(t.split('\n')).toEqual(['10/13–10/25｜无记录（13 天）', '10/26 周一｜体重52.5kg']);
+    const t = daysTable({ '2026-10-26': { date: '2026-10-26', weightKg: 50.5 } }, '2026-10-13', '2026-10-26');
+    expect(t.split('\n')).toEqual(['10/13–10/25｜无记录（13 天）', '10/26 周一｜体重50.5kg']);
   });
 });

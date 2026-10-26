@@ -8,13 +8,13 @@ export interface Point {
   v?: number;
 }
 
-export function useWidth<T extends HTMLElement>(fallback = 320) {
+export function useWidth<T extends HTMLElement>(fallback = 320, min = 160) {
   const ref = useRef<T>(null);
   const [w, setW] = useState(fallback);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const measure = () => setW(Math.max(160, Math.floor(el.getBoundingClientRect().width)));
+    const measure = () => setW(Math.max(min, Math.floor(el.getBoundingClientRect().width)));
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(measure);
@@ -446,9 +446,9 @@ export function CurveChart({ ratings, minutes, color, height = 150 }: { ratings:
           ))}
           {ticksT
             .filter((m) => m * 60 <= maxT)
-            .map((m) => (
-              <text key={m} x={x(m * 60)} y={height - 6} text-anchor="middle">
-                {m}分
+            .map((m, i, arr) => (
+              <text key={m} x={x(m * 60)} y={height - 6} text-anchor={i === arr.length - 1 ? 'end' : 'middle'}>
+                {i === arr.length - 1 ? `${m} 分钟` : m}
               </text>
             ))}
         </g>
@@ -468,12 +468,12 @@ export function CurveChart({ ratings, minutes, color, height = 150 }: { ratings:
 }
 
 export function Sparkline({ values, color, height = 28 }: { values: (number | undefined)[]; color: string; height?: number }) {
-  const [ref, width] = useWidth<HTMLDivElement>(120);
+  const [ref, width] = useWidth<HTMLDivElement>(120, 40);
   const nums = values.filter((v): v is number => v !== undefined);
   if (nums.length < 2) return <div ref={ref} style={{ height: `${height}px` }} />;
   const lo = Math.min(...nums);
   const hi = Math.max(...nums);
-  const pad = 4;
+  const pad = 6;
   const x = (i: number) => pad + (i / (values.length - 1)) * (width - pad * 2);
   const y = (v: number) => pad + (height - pad * 2) * (1 - (hi === lo ? 0.5 : (v - lo) / (hi - lo)));
   let d = '';
@@ -489,7 +489,7 @@ export function Sparkline({ values, color, height = 28 }: { values: (number | un
   const li = values.length - 1 - [...values].reverse().findIndex((v) => v !== undefined);
   return (
     <div ref={ref}>
-      <svg class="spark" width={width} height={height} aria-hidden="true">
+      <svg class="spark" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
         <path d={d} fill="none" stroke="var(--ink-3)" stroke-width="1.5" stroke-linejoin="round" />
         <circle cx={x(li)} cy={y(values[li] as number)} r="3.5" fill={color} stroke="var(--surface)" stroke-width="2" />
       </svg>
@@ -538,7 +538,9 @@ export function SealGrid({
         </div>
       ))}
       <p class="xs muted" style={{ minHeight: '1.4em' }}>
-        {tip ? `${shortDate(dates[tip.i])} ${weekdayLabel(dates[tip.i])} · ${rows[tip.r].char}：${rows[tip.r].values[tip.i] === undefined ? '无记录' : `完成 ${Math.round((rows[tip.r].values[tip.i] as number) * 100)}%`}` : '颜色越深，那天这一项完成得越多；实心是完成了。'}
+        {tip
+          ? `${shortDate(dates[tip.i])} ${weekdayLabel(dates[tip.i])} · ${rows[tip.r].char}：${rows[tip.r].values[tip.i] === undefined ? '无记录' : `完成 ${Math.round((rows[tip.r].values[tip.i] as number) * 100)}%`}`
+          : '颜色越浓，那天做得越多；最浓的格子是全部完成。'}
       </p>
     </div>
   );
@@ -561,10 +563,7 @@ export function ChartCard({
   return (
     <section class="card stack" aria-label={title}>
       <div class="section-head">
-        <div class="stack tight">
-          <h3 style={{ fontSize: 'var(--t-md)' }}>{title}</h3>
-          {sub ? <p class="xs muted">{sub}</p> : null}
-        </div>
+        <h3 style={{ fontSize: 'var(--t-md)' }}>{title}</h3>
         {table ? (
           <button type="button" class="btn sm ghost" aria-pressed={showTable} onClick={() => setShowTable(!showTable)}>
             <Icon name={showTable ? 'trends' : 'list'} />
@@ -572,6 +571,11 @@ export function ChartCard({
           </button>
         ) : null}
       </div>
+      {sub ? (
+        <p class="xs muted" style={{ marginTop: '-6px' }}>
+          {sub}
+        </p>
+      ) : null}
       {legend && legend.length > 1 ? (
         <div class="legend">
           {legend.map((l) => (

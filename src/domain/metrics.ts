@@ -319,19 +319,6 @@ export function computeInsights(days: DayMap, from: ISODate, to: ISODate, t: Tar
     });
   }
 
-  const medLatency = dates
-    .map((d) => ({ m: days[addDays(d, -1)]?.habits?.meditatePmMin ?? 0, l: days[d]?.sleep?.latencyMin }))
-    .filter((x): x is { m: number; l: number } => x.l !== undefined);
-  const medYes = medLatency.filter((x) => x.m > 0);
-  const medNo = medLatency.filter((x) => x.m === 0);
-  if (medYes.length >= 3 && medNo.length >= 3) {
-    out.push({
-      id: 'med-latency',
-      title: '睡前冥想之后多久睡着',
-      detail: `做了睡前冥想的 ${medYes.length} 晚，平均 ${Math.round(avg(medYes.map((x) => x.l))!)} 分钟睡着；没做的 ${medNo.length} 晚是 ${Math.round(avg(medNo.map((x) => x.l))!)} 分钟。`,
-    });
-  }
-
   const sessions = dates.flatMap((d) => completedExposures(days[d]));
   const gaps = sessions
     .filter((s) => s.predicted !== undefined && s.ratings.length)
@@ -356,7 +343,7 @@ export function computeInsights(days: DayMap, from: ISODate, to: ISODate, t: Tar
     if (Math.abs(first - last) >= 0.5) {
       out.push({
         id: 'refit-trend',
-        title: last < first ? '起来重铺变少了' : '起来重铺变多了',
+        title: last < first ? '重铺变少了' : '重铺变多了',
         detail: `前 ${half} 晚平均 ${fmt(first)} 次，后 ${nights.length - half} 晚平均 ${fmt(last)} 次。上限是 ${t.refitCap} 次。`,
       });
     }
@@ -390,7 +377,7 @@ export function computeMilestones(days: DayMap, t: Targets): Milestone[] {
     const d = days[date];
     if (d.sleep?.stuckButSlept) add({ id: 'stuck-slept', glyph: '眠', title: '卡着也睡着了', date, detail: '被子明明卡着，没起来，然后睡着了。' });
     const r = nightRefits(d);
-    if (hasSleep(d) && r === 0) add({ id: 'zero-refit', glyph: '安', title: '一次都没起来', date, detail: '整晚没有下床重铺。' });
+    if (hasSleep(d) && r === 0) add({ id: 'zero-refit', glyph: '安', title: '整晚没重铺', date, detail: '一次都没有下床重铺。' });
     capRun = hasSleep(d) && r !== undefined && r <= t.refitCap ? capRun + 1 : hasSleep(d) ? 0 : capRun;
     if (capRun >= 7) add({ id: 'cap-7', glyph: '守', title: '连续 7 晚守住上限', date, detail: `每晚起来不超过 ${t.refitCap} 次。` });
     wakeRun = wakeOnTime(d, t) ? wakeRun + 1 : hasSleep(d) ? 0 : wakeRun;

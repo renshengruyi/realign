@@ -9,7 +9,7 @@ import { closeSheet } from '../nav';
 import { updateActivePlan } from '../planning';
 
 const NUMERIC: { key: keyof Targets; label: string; step?: number; max?: number }[] = [
-  { key: 'refitCap', label: '每晚最多起来重铺（次）', max: 10 },
+  { key: 'refitCap', label: '每晚最多重铺（次）', max: 10 },
   { key: 'urgeDelayMin', label: '冲动来了先等（分钟）', max: 30 },
   { key: 'exposurePerWeek', label: '暴露练习（次/周）', max: 14 },
   { key: 'exposureMin', label: '每次暴露（分钟）', step: 5, max: 60 },

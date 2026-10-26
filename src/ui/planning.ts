@@ -1,5 +1,6 @@
 // Writes to the active weekly plan. Until something changes it, the active plan
 // is the built-in template and lives only in memory; the first edit stores it.
+import { diffDays } from '../domain/dates';
 import type { Plan, Targets } from '../domain/types';
 import { newId } from '../platform/localdb';
 import { activePlan, mergeDocument, plans, setDocument } from '../platform/store';
@@ -47,4 +48,15 @@ export async function adoptPlan(plan: Plan) {
   }
   await setDocument(`plans/${id}`, { ...plan, id, status: 'active' } as unknown as Record<string, unknown>);
   await mergeDocument('meta/state', { activePlanId: id, schema: 1 });
+}
+
+/** Weeks since the first stored plan; the coach writes only the week's theme. */
+export function planWeekNumber(plan: Plan, all: Plan[]): number {
+  const first = [...all.map((p) => p.weekStart), plan.weekStart].sort()[0];
+  return Math.max(1, Math.floor(diffDays(plan.weekStart, first) / 7) + 1);
+}
+
+export function planLabel(plan: Plan, all: Plan[]): string {
+  if (/^第\s*\d+\s*周/.test(plan.title)) return plan.title;
+  return `第 ${planWeekNumber(plan, all)} 周 · ${plan.title}`;
 }

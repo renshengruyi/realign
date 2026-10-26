@@ -400,6 +400,8 @@ export interface CheckupRecord {
   results: LabResult[];
   files: CheckupFile[];
   summary?: string;
+  /** The results the summary was written for, to tell when it is out of date. */
+  summaryFor?: string;
   createdAt: number;
 }
 

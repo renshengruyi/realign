@@ -99,7 +99,7 @@ export function buildFixture(today) {
   docs['plans/p1'] = {
     id: 'p1',
     weekStart,
-    title: '第 3 周 · 迁移到睡前',
+    title: '迁移到睡前',
     phase: '阶段二：白天结构化暴露',
     focus: '晚上最多起来 1 次；每周两次“故意铺不好就躺下”。',
     rules: [
@@ -112,7 +112,7 @@ export function buildFixture(today) {
     targets: { refitCap: 1 },
     tasks: [
       { id: 'k1', text: '预约家医科抽血', done: true },
-      { id: 'k2', text: '买一条薄的纯棉被套', done: false },
+      { id: 'k2', text: '给触发清单打完分', done: false },
     ],
     source: 'review',
     status: 'active',
@@ -132,10 +132,10 @@ export function buildFixture(today) {
   });
   docs['erp/hierarchy'] = {
     items: [
-      { id: 't1', text: '短袖躺床上，肚子侧面贴床单', score: 40, status: 'done', count: 6 },
-      { id: 't2', text: '被子搭在肩膀上', score: 55, status: 'practicing', count: 9 },
-      { id: 't3', text: '穿长袖盖厚被', score: 70, status: 'todo' },
-      { id: 't4', text: '午睡穿新 T 恤', score: 60, status: 'todo' },
+      { id: 't1', text: '短袖躺床上，肚子侧面贴床单', score: 4, status: 'done', count: 6 },
+      { id: 't2', text: '被子搭在肩膀上', score: 5, status: 'practicing', count: 9 },
+      { id: 't3', text: '穿长袖盖厚被', score: 7, status: 'todo' },
+      { id: 't4', text: '午睡穿新 T 恤', score: 6, status: 'todo' },
     ],
   };
   docs['erp/rituals'] = {

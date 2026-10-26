@@ -5,7 +5,7 @@ import type { UrgeEvent } from '../../domain/types';
 import { newId } from '../../platform/localdb';
 import { dayOf, targets, updateDayList } from '../../platform/store';
 import { play } from '../audio';
-import { Scale } from '../components/controls';
+
 import { Dial } from '../components/Dial';
 import { Icon } from '../components/Icon';
 import { ToolFrame } from '../components/Sheet';
@@ -56,14 +56,14 @@ export function NightTool() {
         {phase === 'idle' || phase === 'after' ? (
           <>
             <p class="center" style={{ fontSize: 'var(--t-sm)' }}>
-              今晚已起来 {ups}/{t.refitCap} 次
+              今晚已重铺 {ups}/{t.refitCap} 次
             </p>
             {phase === 'after' ? (
               <p class="guide-line" style={{ color: '#9a6240' }}>
                 {last === 'stayed'
                   ? '你留在了床上。让它卡着，睡不睡得着都可以。'
                   : last === 'left-room'
-                    ? '去别的房间坐一会，灯调暗。有困意再回来。'
+                    ? '去别的房间坐一会，灯调暗。有困意再回来，回来直接躺下，不整理床铺。'
                     : capReached
                       ? '记下了。今晚的上限到了，下次冲动来了就留在床上。'
                       : '记下了。铺完就躺下，不再检查。'}
@@ -102,7 +102,7 @@ export function NightTool() {
             {startScore === undefined ? (
               <div class="card stack" style={{ width: '100%' }}>
                 <p class="small">现在几分？（可跳过）</p>
-                <Scale label="现在的不适分" value={startScore} onChange={setStartScore} />
+                <NightScale value={startScore} onChange={setStartScore} />
               </div>
             ) : null}
             <button type="button" class="btn ghost" onClick={() => setPhase('decide')}>
@@ -118,7 +118,7 @@ export function NightTool() {
             </p>
             <div class="card stack" style={{ width: '100%' }}>
               <p class="small">现在几分？（可跳过）</p>
-              <Scale label="现在的不适分" value={endScore} onChange={setEndScore} />
+              <NightScale value={endScore} onChange={setEndScore} />
             </div>
             <div class="stack" style={{ width: '100%' }}>
               <button type="button" class="btn primary lg block" onClick={() => decide('stayed')}>
@@ -137,5 +137,18 @@ export function NightTool() {
         ) : null}
       </div>
     </ToolFrame>
+  );
+}
+
+/** Six big targets (0, 2 … 10) that are easy to hit half asleep in the dark. */
+function NightScale({ value, onChange }: { value: number | undefined; onChange: (v: number) => void }) {
+  return (
+    <div class="scale night-scale" role="group" aria-label="现在的不适分">
+      {[0, 2, 4, 6, 8, 10].map((n) => (
+        <button type="button" key={n} aria-pressed={value === n} aria-label={`现在的不适分 ${n}`} onClick={() => onChange(n)}>
+          {n}
+        </button>
+      ))}
+    </div>
   );
 }

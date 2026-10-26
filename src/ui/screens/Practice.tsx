@@ -23,7 +23,7 @@ export function PracticeScreen() {
       cards: [
         { key: 'sleep', icon: 'play', title: '白天暴露练习', sub: `${t.exposureMin} 分钟 · 每 2–3 分钟打一次分`, run: () => openTool('exposure') },
         { key: 'sleep', icon: 'bed', title: '午睡训练', sub: `${t.napMin} 分钟 · 一次都不调`, run: () => openTool('nap') },
-        { key: 'sleep', icon: 'moon', title: '夜间冲动计时', sub: `先等 ${t.urgeDelayMin} 分钟 · 记下起来几次`, run: () => openTool('night') },
+        { key: 'sleep', icon: 'moon', title: '夜间冲动计时', sub: `先等 ${t.urgeDelayMin} 分钟 · 记下重铺几次`, run: () => openTool('night') },
         { key: 'sleep', icon: 'refresh', title: '故意铺不好', sub: '针对“必须铺对”这一点', run: () => openTool('exposure', { kind: 'imperfect-bed' }) },
       ],
     },
@@ -56,7 +56,7 @@ export function PracticeScreen() {
     {
       title: '收尾',
       note: '把白天的事停在纸上，别带到床上。',
-      cards: [{ key: 'calm', icon: 'pen', title: '收工仪式', sub: '写下明天三件事和担心停车场', run: () => openSheet('shutdown') }],
+      cards: [{ key: 'calm', icon: 'pen', title: '收工仪式', sub: '写下明天三件事，担心先放进暂存区', run: () => openSheet('shutdown') }],
     },
   ];
 
@@ -107,7 +107,7 @@ export function PracticeScreen() {
             编辑
           </button>
         </div>
-        <p class="small muted">会引发这种感觉的情境，各打一个 0–100 的难受分。暴露练习从 40–60 分的开始，慢慢往上。</p>
+        <p class="small muted">会引发这种感觉的情境，各打一个 0–10 的难受分。暴露练习从 4–6 分的开始，慢慢往上。</p>
         {sorted.length ? (
           <ul class="list">
             {sorted.map((x) => (
@@ -117,7 +117,7 @@ export function PracticeScreen() {
                 </span>
                 <span class="grow">{x.text}</span>
                 <span class={`pill${x.status === 'done' ? ' good' : x.status === 'practicing' ? ' primary' : ''}`}>
-                  {x.status === 'done' ? '已掌握' : x.status === 'practicing' ? `练习中${x.count ? ` ${x.count} 次` : ''}` : '未开始'}
+                  {x.status === 'done' ? '已适应' : x.status === 'practicing' ? `练习中${x.count ? ` ${x.count} 次` : ''}` : '未开始'}
                 </span>
               </li>
             ))}

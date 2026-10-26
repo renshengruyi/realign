@@ -92,8 +92,8 @@ function ProfileSheet() {
       }
     >
       <div class="row wrap" style={{ gap: '12px', alignItems: 'flex-start' }}>
-        <Field label="出生年份">{numInput('出生年份', p.birthYear, (v) => set({ birthYear: v }), '1996')}</Field>
-        <Field label="身高（cm）">{numInput('身高', p.heightCm, (v) => set({ heightCm: v }), '173')}</Field>
+        <Field label="出生年份">{numInput('出生年份', p.birthYear, (v) => set({ birthYear: v }), '1990')}</Field>
+        <Field label="身高（cm）">{numInput('身高', p.heightCm, (v) => set({ heightCm: v }), '170')}</Field>
       </div>
       <Field label="性别">
         <Segmented
@@ -147,7 +147,7 @@ function ProfileSheet() {
             setDraft('');
           }}
         >
-          <input class="input" placeholder="加一项，例如：慢性胃炎" value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} aria-label="新状况" />
+          <input class="input" placeholder="加一项，例如：过敏性鼻炎" value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} aria-label="新状况" />
           <button type="submit" class="btn" disabled={!draft.trim()}>
             添加
           </button>
@@ -554,7 +554,7 @@ function CheckupView({ id }: { id: string }) {
     setText('');
     try {
       const r = await askText(explainLabsPrompt(currentContext(), rec), { cache: false, onText: ({ text: t }) => setText(t) });
-      await mergeDocument(`checkups/${rec.id}`, { summary: r?.text ?? '' });
+      await mergeDocument(`checkups/${rec.id}`, { summary: r?.text ?? '', summaryFor: JSON.stringify(rec.results) });
     } catch (e) {
       if (!isCancel(e)) setErr(aiMessage(e));
     } finally {
@@ -563,6 +563,8 @@ function CheckupView({ id }: { id: string }) {
   }
 
   const summary = text || rec.summary;
+  // a second reading of unchanged results adds nothing; offer it only after an edit
+  const outdated = !!rec.summary && rec.summaryFor !== undefined && rec.summaryFor !== JSON.stringify(rec.results);
 
   return (
     <Sheet
@@ -642,10 +644,12 @@ function CheckupView({ id }: { id: string }) {
       )}
       {aiReady() && rec.results.length ? (
         <div class="stack">
-          <button type="button" class="btn" style={{ justifySelf: 'start' }} disabled={busy} onClick={explain}>
-            {busy ? <span class="spinner" /> : <Icon name="sparkle" />}
-            {summary ? '重新解读' : '用 AI 解读这份结果'}
-          </button>
+          {!summary || outdated ? (
+            <button type="button" class="btn" style={{ justifySelf: 'start' }} disabled={busy} onClick={explain}>
+              {busy ? <span class="spinner" /> : <Icon name="sparkle" />}
+              {outdated ? '数值改过了，重新解读' : '用 AI 解读这份结果'}
+            </button>
+          ) : null}
           {busy && !text ? <Thinking label="正在看结果" /> : null}
           {summary ? (
             <div class="card flat small" style={{ lineHeight: 1.7 }}>

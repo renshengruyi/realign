@@ -94,14 +94,14 @@
     caution: '',
   };
   const REVIEW = {
-    summary: '这周记录了 6 天，守住上限 4 晚，暴露练习的结束分数普遍比开始低 2–3 分。午睡还是会起来调衣服。',
-    wins: ['卡着也睡着了 1 晚', '暴露练习做了 6 次，每次都练满'],
+    summary: '这周 7 天都有记录，守住上限 4 晚，暴露练习的结束分数普遍比开始低 2–3 分。午睡还是会起来调衣服。',
+    wins: ['卡着也睡着了 1 晚', '暴露练习做了 5 次，每次都练满'],
     struggles: ['累的晚上起来重铺 3–4 次', '晚餐常常拖到 20:30 以后'],
     insights: ['晚餐 20 点以后的 3 天，第二天胃部不适平均高 2 分'],
-    erp: { decision: 'advance', rationale: '上限守住 4/6 晚，暴露练习结束分数在下降，可以把上限降到 1 次。' },
+    erp: { decision: 'advance', rationale: '上限守住 4/7 晚，暴露练习结束分数在下降，可以开始练“故意铺不好”。' },
     nextWeek: {
       title: '第 2 周 · 上限降到 1 次',
-      phase: '阶段二：白天结构化暴露',
+      phase: '白天结构化暴露',
       focus: '晚上最多起来 1 次，开始练“故意铺不好就躺下”。',
       rules: [
         { scene: 'night', text: '冲动来了先躺着不动 5 分钟，观察它' },
@@ -111,14 +111,14 @@
         { scene: 'base', text: '晚餐 19:00 前吃完' },
       ],
       targets: { refitCap: 1, exposurePerWeek: 7 },
-      tasks: ['周三前预约家医科抽血', '买一条薄的纯棉被套'],
+      tasks: ['周三前预约家医科抽血', '给触发清单打完分'],
     },
     changes: ['晚上上限 2 次 → 1 次', '加入“故意铺不好”练习'],
     memories: [{ text: '晚餐晚于 20 点，第二天胃更不舒服', category: '饮食' }],
     referral: '',
   };
   const REPORT = {
-    date: '2026-10-20',
+    date: '2026-10-24',
     place: '测试诊所',
     title: '血液检查',
     results: [
@@ -133,7 +133,7 @@
     if (prompt.includes('请写今天的简报')) return JSON.stringify(BRIEF);
     if (prompt.includes('把用户的一句话变成健康记录')) {
       const date = (prompt.match(/今天是 (\d{4}-\d{2}-\d{2})/) || [])[1];
-      return JSON.stringify({ date, summary: '昨晚起来重铺 3 次，午饭吃得慢', patch: { sleep: { refits: 3, maxDiscomfort: 7 }, meals: [{ time: '12:30', type: 'lunch', slow: true }] }, unsure: [] });
+      return JSON.stringify({ date, summary: '昨晚重铺 3 次，午饭吃得慢', patch: { sleep: { refits: 3 }, meals: [{ time: '12:30', type: 'lunch', slow: true }] }, unsure: [] });
     }
     if (prompt.includes('并给出下一周的计划')) return JSON.stringify(REVIEW);
     if (prompt.includes('体检或化验报告')) return JSON.stringify(REPORT);

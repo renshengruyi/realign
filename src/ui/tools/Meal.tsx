@@ -27,13 +27,12 @@ export function MealTool({ type: initialType }: { type?: MealType }) {
   const [startHM] = useState(nowHM());
   const [cueAt, setCueAt] = useState(0);
   const [meal, setMeal] = useState<Partial<Meal>>({});
-  const sw = useStopwatch();
+  const sw = useStopwatch(true);
   const chimed = useRef(false);
   const target = (type === 'snack' ? 10 : 20) * 60;
   const cue = MEAL_CUES[cueAt % MEAL_CUES.length];
 
   useEffect(() => {
-    sw.start();
     keepAwake();
     return () => releaseAwake();
   }, []);

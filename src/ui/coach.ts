@@ -202,8 +202,12 @@ export function cleanProposal(raw: RawReview['nextWeek'], fallback: Plan): PlanP
       } else if (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 600) (t as Record<string, unknown>)[k] = v;
     }
   }
+  // the app numbers the weeks itself; keep only the theme
+  const title = String(raw?.title ?? '')
+    .replace(/^第\s*\d+\s*周\s*[·・:：\-—]?\s*/, '')
+    .trim();
   return {
-    title: String(raw?.title ?? '').trim() || fallback.title,
+    title: title || fallback.title,
     phase: String(raw?.phase ?? '').trim() || fallback.phase,
     focus: String(raw?.focus ?? '').trim() || fallback.focus,
     rules: rules.length ? rules : fallback.rules,

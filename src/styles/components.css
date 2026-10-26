@@ -739,7 +739,7 @@
   z-index: 80;
   left: 50%;
   transform: translateX(-50%);
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px));
   display: grid;
   gap: 8px;
   width: min(440px, calc(100% - 32px));
@@ -747,7 +747,7 @@
 }
 
 .toast {
-  pointer-events: auto;
+  pointer-events: none;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -762,7 +762,7 @@
 
 @keyframes toast-in {
   from {
-    transform: translateY(-8px);
+    transform: translateY(8px);
     opacity: 0;
   }
 }
@@ -781,7 +781,6 @@
 
 @media (min-width: 960px) {
   .toasts {
-    top: auto;
     bottom: 24px;
   }
 }
@@ -804,6 +803,11 @@
 .pill svg {
   width: 13px;
   height: 13px;
+}
+
+.pill.wrap {
+  white-space: normal;
+  max-width: 100%;
 }
 
 .pill.good {
@@ -1034,6 +1038,28 @@
 .tl-main .n {
   font-size: var(--t-xs);
   color: var(--ink-3);
+}
+
+.tl-fold button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 2px 58px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+
+.tl-fold {
+  list-style: none;
+}
+
+.tl-item.past:not(.done) .tl-main .t {
+  color: var(--ink-2);
+  font-weight: 500;
 }
 
 .tl-now {
@@ -1284,6 +1310,15 @@
   font-size: var(--t-xs);
 }
 
+.week-table tbody th {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+}
+
 /* ---------------------------------------------------------------- misc */
 
 .empty {
@@ -1486,7 +1521,7 @@
   position: absolute;
   inset: 0;
   background: var(--c);
-  opacity: calc(var(--p) * 0.7);
+  opacity: calc(0.12 + var(--p) * 0.4);
 }
 
 .sg-cell.full::after {

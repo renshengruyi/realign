@@ -36,7 +36,7 @@ export const DEFAULT_RHYTHM: RhythmItem[] = [
   { id: 'r-focus-am', time: '09:00', title: '上午专注', kind: 'focus', note: '坐 30 分钟，站起来 10 分钟' },
   { id: 'r-snack-am', time: '10:30', title: '加餐', kind: 'meal', mealType: 'snack' },
   { id: 'r-lunch', time: '12:30', title: '午餐 · 细嚼慢咽', kind: 'meal', mealType: 'lunch', durationMin: 20 },
-  { id: 'r-nap', time: '13:15', title: '午睡训练', kind: 'nap', durationMin: 20 },
+  { id: 'r-nap', time: '13:30', title: '午睡训练', kind: 'nap', durationMin: 20, note: '饭后 30 分钟以上再躺下' },
   { id: 'r-focus-pm', time: '14:00', title: '下午专注', kind: 'focus' },
   { id: 'r-snack-pm', time: '15:30', title: '加餐', kind: 'meal', mealType: 'snack' },
   { id: 'r-exposure', time: '16:30', title: '白天暴露练习', kind: 'exposure', durationMin: 15 },
@@ -74,13 +74,13 @@ export function templatePlan(weekStart: string, now = Date.now()): Plan {
   return {
     id: weekStart,
     weekStart,
-    title: '第 1 周 · 摸底与反应阻止',
+    title: '摸底与反应阻止',
     phase: '阶段一：摸底与第一轮反应阻止',
     focus: '先把记录做起来：晚上守住上限，午睡一次都不调。',
     rules: [
       { scene: 'night', text: '冲动来了先躺着不动 5 分钟，观察它：在哪、多大、是压力、温度还是边界感，每分钟心里打一个分' },
-      { scene: 'night', text: '一晚最多起来重铺 2 次；第三次冲动来了就留在床上，允许它卡着' },
-      { scene: 'night', text: '躺 20 分钟还在较劲、越来越清醒，就去别的房间待着，有困意再回来' },
+      { scene: 'night', text: '一晚最多重铺 2 次；第三次冲动来了就留在床上，让它卡着' },
+      { scene: 'night', text: '睡不着超过 20 分钟：去别的房间坐坐，有困意再回来；回来直接躺下，不整理床铺' },
       { scene: 'nap', text: '穿着衣服躺 20 分钟，一次都不调整；睡不睡着都算完成' },
       { scene: 'day', text: '每天固定时间穿睡衣躺 15 分钟，把被子搭在最敏感的位置；不动、不调、不转移注意力，每 2–3 分钟打一次分' },
       { scene: 'day', text: '练完写一句：我预测会怎样？实际怎样？' },
@@ -125,7 +125,7 @@ export const IMPERFECT_BED_STEPS = [
 export const NIGHT_RULE_HINTS = [
   '这 5 分钟不是硬撑，是观察：它在哪、多大、是什么感觉。',
   '起来与否由你决定，但先等完这 5 分钟。',
-  '已经较劲 20 分钟以上、越来越清醒？可以去别的房间待一会，有困意再回来。',
+  '睡不着超过 20 分钟？去别的房间坐坐，有困意再回来，回来直接躺下，不整理床铺。',
 ];
 
 // ---------------------------------------------------------------- eating
@@ -458,7 +458,7 @@ export const CHECKUP_CATALOG: CheckItem[] = [
     dept: '身心科 / 精神科',
     priority: 'medium',
     status: 'todo',
-    why: '自助练习几周仍没松动时，面对面评估能更快',
+    why: '自己练了几周还是没松动，就去面对面评估，会快很多',
     items: ['强迫症状评估', '睡眠评估', '讨论 ERP 治疗或药物选项'],
   },
   {

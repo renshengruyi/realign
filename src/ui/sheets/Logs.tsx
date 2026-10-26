@@ -267,10 +267,8 @@ export function SealSheet({ k }: { k: SealKey }) {
         <ul class="stack tight grow" style={{ listStyle: 'none' }}>
           {seal.parts.map((p) => (
             <li class="row" key={p.label}>
-              <span class="check-btn" aria-hidden="true" style={p.done ? { background: 'var(--ink-3)', borderColor: 'var(--ink-3)', color: 'var(--bg)', width: '24px', height: '24px' } : { width: '24px', height: '24px' }}>
-                <Icon name="check" size={14} />
-              </span>
-              <span class={p.done ? 'muted' : ''}>{p.label}</span>
+              {p.done ? <Icon name="check" size={16} /> : <span class="dot" style={{ color: 'var(--line-strong)', margin: '0 4px' }} aria-hidden="true" />}
+              <span class={p.done ? 'soft' : ''}>{p.label}</span>
             </li>
           ))}
         </ul>
@@ -278,7 +276,7 @@ export function SealSheet({ k }: { k: SealKey }) {
       <p class="small soft">{notes[k]}</p>
       {k === 'food' ? (
         <ul class="stack tight small soft" style={{ paddingLeft: '18px' }}>
-          {GUT_TIPS.slice(0, 3).map((x) => (
+          {[GUT_TIPS[0], GUT_TIPS[2], GUT_TIPS[4]].map((x) => (
             <li key={x}>{x}</li>
           ))}
         </ul>
@@ -327,7 +325,7 @@ export function ShutdownSheet() {
       }
     >
       <p class="small soft">
-        白天用脑太多会带到床上。花五分钟把今天收个尾：写下明天最重要的三件事，还在脑子里转的事写进停车场，明天再处理。然后合上电脑。
+        白天用脑太多会带到床上。花五分钟把今天收个尾：写下明天最重要的三件事，还在脑子里转的事写进暂存区，明天再处理。然后合上电脑。
       </p>
       <Field label={`明天（${formatDate(tomorrow, { weekday: true })}）的三件事`}>
         <div class="stack tight">
@@ -343,8 +341,8 @@ export function ShutdownSheet() {
           ))}
         </div>
       </Field>
-      <Field label="担心停车场" hint="写下来，不用现在解决">
-        <TextArea label="担心停车场" value={worries} onInput={setWorries} rows={3} placeholder="例如：那封邮件明早再回" />
+      <Field label="担心暂存区" hint="写下来，不用现在解决">
+        <TextArea label="担心暂存区" value={worries} onInput={setWorries} rows={3} placeholder="例如：那封邮件明早再回" />
       </Field>
     </Sheet>
   );

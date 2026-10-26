@@ -15,7 +15,7 @@ import { closeSheet } from '../nav';
 const LATENCY = [
   { value: 10, label: '15 分钟内' },
   { value: 22, label: '15–30 分钟' },
-  { value: 45, label: '半小时到 1 小时' },
+  { value: 45, label: '30 分钟–1 小时' },
   { value: 90, label: '1–2 小时' },
   { value: 150, label: '2 小时以上' },
 ];
@@ -62,7 +62,7 @@ export function MorningCheckin() {
       }
     >
       <p class="small soft">
-        记的是昨晚（{formatDate(date)} 早上醒来的这一晚）。大概就行，不用精确。
+        记的是昨晚这一觉（今早 {formatDate(date)} 醒来）。大概就行，不用精确。
         {hours !== undefined ? ` 估算睡了约 ${round1(hours)} 小时。` : ''}
       </p>
       <div class="row wrap" style={{ gap: '16px' }}>
@@ -76,29 +76,34 @@ export function MorningCheckin() {
       <Field label="大概多久睡着">
         <Segmented label="入睡用时" options={LATENCY} value={nearest(s.latencyMin)} onChange={(v) => set({ latencyMin: v })} />
       </Field>
-      <Field label="起来重铺或调整了几次" hint={nightUps !== undefined ? `夜里计时记了 ${nightUps} 次` : '下床铺被子、起来调衣服都算'}>
+      <Field label="重铺了几次" hint={nightUps !== undefined ? `夜里计时记了 ${nightUps} 次` : '下床铺被子、起来调衣服都算'}>
         <Stepper label="重铺次数" value={s.refits} onChange={(v) => set({ refits: v })} max={30} suffix="次" />
       </Field>
       <Field label="夜里最难受的时候几分">
         <Scale label="最高不适分" value={s.maxDiscomfort} onChange={(v) => set({ maxDiscomfort: v })} low="0 没感觉" high="10 难受到极点" />
       </Field>
-      <div class="stack tight">
-        <Switch checked={!!s.stuckButSlept} onChange={(v) => set({ stuckButSlept: v })} label="卡着也睡着了" sub="被子明明还卡着，没有起来，然后睡着了" />
-        <Switch checked={!!s.leftBed} onChange={(v) => set({ leftBed: v })} label="用了 20 分钟离床规则" sub="较劲太久，去别的房间待了一会" />
-        <Switch checked={!!s.tired} onChange={(v) => set({ tired: v })} label="昨天很累" />
-      </div>
-      <Field label="起夜几次">
-        <Stepper label="起夜次数" value={s.nocturia} onChange={(v) => set({ nocturia: v })} max={10} suffix="次" />
-      </Field>
-      <Field label="睡得怎样">
-        <Scale five label="睡眠质量" value={s.quality} onChange={(v) => set({ quality: v })} low="1 很差" high="5 很好" />
-      </Field>
+      <Switch checked={!!s.stuckButSlept} onChange={(v) => set({ stuckButSlept: v })} label="卡着也睡着了" sub="被子明明还卡着，没有起来，然后睡着了" />
       <Field label="起床时的精力">
-        <Scale five label="起床精力" value={energy} onChange={setEnergy} low="1 很累" high="5 很足" />
+        <Scale five label="起床精力" value={energy} onChange={setEnergy} low="1 很累" high="5 精神很好" />
       </Field>
-      <Field label="备注（可不填）">
-        <TextArea label="备注" value={s.note} onInput={(v) => set({ note: v })} rows={2} placeholder="例如：换了薄被、睡前看了手机" />
-      </Field>
+      <details class="more" open={!!(s.nocturia || s.quality || s.note || s.leftBed || s.tired)}>
+        <summary>更多（可不填）</summary>
+        <div class="stack loose" style={{ marginTop: '12px' }}>
+          <div class="stack tight">
+            <Switch checked={!!s.leftBed} onChange={(v) => set({ leftBed: v })} label="用了离床规则" sub="睡不着超过 20 分钟，去别的房间待了一会" />
+            <Switch checked={!!s.tired} onChange={(v) => set({ tired: v })} label="昨天很累" />
+          </div>
+          <Field label="起夜几次">
+            <Stepper label="起夜次数" value={s.nocturia} onChange={(v) => set({ nocturia: v })} max={10} suffix="次" />
+          </Field>
+          <Field label="睡得怎样">
+            <Scale five label="睡眠质量" value={s.quality} onChange={(v) => set({ quality: v })} low="1 很差" high="5 很好" />
+          </Field>
+          <Field label="备注">
+            <TextArea label="备注" value={s.note} onInput={(v) => set({ note: v })} rows={2} placeholder="例如：睡前看了手机" />
+          </Field>
+        </div>
+      </details>
     </Sheet>
   );
 }
@@ -156,10 +161,10 @@ export function EveningCheckin() {
       }
     >
       <Field label="下午的精力">
-        <Scale five label="下午精力" value={pm} onChange={setPm} low="1 很累" high="5 很足" />
+        <Scale five label="下午精力" value={pm} onChange={setPm} low="1 很累" high="5 精神很好" />
       </Field>
       <Field label="今天胃部不适几分">
-        <Scale label="胃部不适" value={gut.discomfort} onChange={(v) => setGut({ ...gut, discomfort: v })} low="0 很舒服" high="10 很难受" />
+        <Scale label="胃部不适" value={gut.discomfort} onChange={(v) => setGut({ ...gut, discomfort: v })} low="0 没有不适" high="10 很难受" />
       </Field>
       <Field label="有这些情况吗">
         <Chips label="胃部症状" options={GUT_SYMPTOMS} values={gut.symptoms ?? []} onChange={(v) => setGut({ ...gut, symptoms: v })} />
@@ -175,7 +180,7 @@ export function EveningCheckin() {
       </div>
       <div class="stack">
         <p class="label small" style={{ fontWeight: 600, color: 'var(--ink-2)' }}>
-          三行日记
+          三行日记（可不填，写一行也行）
         </p>
         <TextArea label="今天做到的一件事" rows={2} value={j.win} onInput={(v) => setJ({ ...j, win: v })} placeholder="今天做到的一件事，再小也算" />
         <TextArea label="今天难的地方" rows={2} value={j.hard} onInput={(v) => setJ({ ...j, hard: v })} placeholder="今天难的地方" />
@@ -183,7 +188,7 @@ export function EveningCheckin() {
       </div>
       {isWeighDay && !day?.weightKg ? (
         <Field label={`今天是称重日（${unitLabel(unit)}）`} hint="早上起床、上完厕所、吃饭前称最准；晚上称也可以，备注一下">
-          <input class="input" inputMode="decimal" placeholder={unit === 'jin' ? '例如 105' : '例如 52.5'} value={weight} onInput={(e) => setWeight((e.target as HTMLInputElement).value)} aria-label="体重" />
+          <input class="input" inputMode="decimal" placeholder={unit === 'jin' ? '例如 120' : '例如 60'} value={weight} onInput={(e) => setWeight((e.target as HTMLInputElement).value)} aria-label="体重" />
         </Field>
       ) : null}
       {late ? <p class="xs muted">快到上床时间了。打完卡就把手机放远一点。</p> : null}

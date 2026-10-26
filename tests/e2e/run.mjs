@@ -139,6 +139,7 @@ if (!ONLY || ONLY === 'today') {
   await page.getByRole('button', { name: '重铺次数增加' }).click();
   await page.getByRole('button', { name: '最高不适分 6' }).click();
   await page.locator('label.switch', { hasText: '卡着也睡着了' }).click();
+  await page.locator('details.more > summary').click();
   await page.getByRole('button', { name: '睡眠质量 3' }).click();
   await page.locator('.sheet-foot .btn.primary').click();
   await page.waitForTimeout(300);
@@ -211,7 +212,7 @@ if (!ONLY || ONLY === 'night') {
   await page.getByRole('button', { name: '冲动来了' }).first().click();
   await page.waitForSelector('.tool.night');
   await page.locator('.tool.night .btn.primary.lg').click();
-  await page.getByRole('button', { name: '现在的不适分 7' }).click();
+  await page.getByRole('button', { name: '现在的不适分 6' }).click();
   await shot(page, 'tool-night-wait-m-dark');
   await page.clock.fastForward(5 * 60_000 + 1000);
   await page.waitForTimeout(400);
@@ -219,7 +220,7 @@ if (!ONLY || ONLY === 'night') {
   await page.getByRole('button', { name: /留在床上/ }).click();
   await page.waitForTimeout(300);
   const day = await db(page, 'days/2026-10-27');
-  check(day?.urges?.length === 1 && day.urges[0].decision === 'stayed' && day.urges[0].startScore === 7, 'night urge logged on the next morning');
+  check(day?.urges?.length === 1 && day.urges[0].decision === 'stayed' && day.urges[0].startScore === 6, 'night urge logged on the next morning');
   await finish(t, 'night');
 }
 
@@ -298,7 +299,7 @@ if (!ONLY || ONLY === 'coach') {
   const threads = await page.evaluate(() => Object.entries(window.__DB__).filter(([k]) => k.startsWith('chats/')).map(([, v]) => v.messages.length));
   check(threads.length === 1 && threads[0] === 4, 'conversation stored as one thread');
 
-  await page.getByRole('tab', { name: /每周复盘/ }).click();
+  await page.getByRole('tab', { name: '复盘' }).click();
   await shot(page, 'coach-review-before-m-light');
   await page.getByRole('button', { name: /开始复盘/ }).click();
   await page.waitForSelector('text=下周计划提议', { timeout: 10000 });
@@ -307,14 +308,14 @@ if (!ONLY || ONLY === 'coach') {
   check(rc?.modelTier === 'complex', 'review uses the complex tier');
   await page.getByRole('button', { name: /采用为本周计划/ }).click();
   await page.waitForTimeout(400);
-  await page.getByRole('tab', { name: /本周计划/ }).click();
+  await page.getByRole('tab', { name: '计划' }).click();
   await page.waitForTimeout(200);
-  check(await page.locator('text=第 2 周 · 上限降到 1 次').first().isVisible(), 'adopted plan is active');
+  check(await page.locator('text=第 1 周 · 上限降到 1 次').first().isVisible(), 'adopted plan is active, week numbered by the app');
   const meta = await db(page, 'meta/state');
   const newPlan = await db(page, `plans/${meta.activePlanId}`);
   check(newPlan?.targets?.refitCap === 1 && (await db(page, 'plans/p1')).status === 'archived', 'old plan archived, new targets applied');
   await shot(page, 'coach-plan-m-light');
-  await page.getByRole('tab', { name: /记忆/ }).click();
+  await page.getByRole('tab', { name: '记忆' }).click();
   await shot(page, 'coach-memory-m-light');
   await finish(t, 'coach');
 }
@@ -379,7 +380,7 @@ if (!ONLY || ONLY === 'forms') {
   await page.waitForSelector('.sheet');
   await page.locator('input[aria-label="明天第 1 件事"]').fill('预约家医科');
   await page.locator('input[aria-label="明天第 2 件事"]').fill('买薄被套');
-  await page.locator('textarea[aria-label="担心停车场"]').fill('工作邮件明早再回');
+  await page.locator('textarea[aria-label="担心暂存区"]').fill('工作邮件明早再回');
   await page.locator('.sheet-foot .btn.primary').click();
   await page.waitForSelector('.sheet', { state: 'detached' });
   const tomorrow = await db(page, 'days/2026-10-27');
@@ -387,8 +388,9 @@ if (!ONLY || ONLY === 'forms') {
   check(tomorrow?.top3?.length === 2 && day?.habits?.shutdown === true && day?.journal?.worries, 'wrap-up saved tomorrow\'s three things');
 
   // weight in 斤
-  await page.waitForSelector('.tile');
-  await page.locator('.tile', { hasText: '体重' }).click();
+  await page.goto(BASE + '#record');
+  await page.waitForSelector('.topbar');
+  await page.locator('section[aria-label="个人资料"]').getByRole('button', { name: '记体重' }).click();
   await page.waitForSelector('.sheet');
   await page.locator('input[aria-label="体重"]').fill('106');
   await page.locator('.sheet-foot .btn.primary').click();
@@ -397,9 +399,7 @@ if (!ONLY || ONLY === 'forms') {
   check(day?.weightKg === 53, 'weight in 斤 stored as kg');
 
   // profile
-  await page.goto(BASE + '#record');
-  await page.waitForSelector('.topbar');
-  await page.locator('section[aria-label="个人资料"] .link').click();
+  await page.locator('section[aria-label="个人资料"]').getByRole('button', { name: '编辑' }).click();
   await page.waitForSelector('.sheet');
   await page.locator('input[aria-label="身高"]').fill('172');
   await page.locator('input[aria-label="新状况"]').fill('偶尔偏头痛');
@@ -412,7 +412,7 @@ if (!ONLY || ONLY === 'forms') {
   // plan edit
   await page.goto(BASE + '#coach');
   await page.waitForSelector('.topbar');
-  await page.getByRole('tab', { name: /本周计划/ }).click();
+  await page.getByRole('tab', { name: '计划' }).click();
   await page.getByRole('button', { name: /修改计划/ }).click();
   await page.waitForSelector('.sheet');
   await page.getByRole('button', { name: '每天冥想（分钟）增加' }).click();

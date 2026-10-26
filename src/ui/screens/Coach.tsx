@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { describePatch, parseReply, statsLine } from '../../domain/ai';
-import { addDays, formatClockTime, formatDate, weekStartOf } from '../../domain/dates';
+import { addDays, formatClockTime, formatDate, toISODate, weekDates, weekStartOf } from '../../domain/dates';
 import { SCENE_LABEL } from '../../domain/defaults';
 import { computeWeekStats } from '../../domain/metrics';
-import type { ChatThread, MemoryCategory, MemoryItem, ProposedAction, Review } from '../../domain/types';
+import type { ChatThread, MemoryCategory, MemoryItem, PlanRule, ProposedAction, Review } from '../../domain/types';
 import { MEMORY_CATEGORIES } from '../../domain/types';
 import { aiReady } from '../../platform/ai-client';
 import { activePlan, aiBlocked, allDays, chats, memory, plans, reviews, targets, today } from '../../platform/store';
@@ -32,20 +32,53 @@ import { Icon } from '../components/Icon';
 import { Markdown } from '../components/Markdown';
 import { TopBar } from '../components/TopBar';
 import { coachDraft, coachView, go, openSheet, reviewWeekHint } from '../nav';
-import { removePlanTask, togglePlanTask, addPlanTask } from '../planning';
+import { addPlanTask, planLabel, removePlanTask, togglePlanTask } from '../planning';
 
 const VIEWS = [
   { id: 'chat', label: '对话', icon: 'coach' },
-  { id: 'plan', label: '本周计划', icon: 'flag' },
-  { id: 'review', label: '每周复盘', icon: 'history' },
+  { id: 'plan', label: '计划', icon: 'flag' },
+  { id: 'review', label: '复盘', icon: 'history' },
   { id: 'memory', label: '记忆', icon: 'memory' },
 ] as const;
+
+const thisYear = () => new Date().getFullYear();
+
+/** A stored timestamp as a local date, with the year when it isn't this year. */
+function tsDate(ts: number): string {
+  const d = toISODate(new Date(ts));
+  return formatDate(d, { year: new Date(ts).getFullYear() !== thisYear() });
+}
+
+function RuleGroups({ rules }: { rules: PlanRule[] }) {
+  const scenes = Array.from(new Set(rules.map((r) => r.scene)));
+  return (
+    <div class="stack">
+      {scenes.map((sc) => (
+        <div key={sc} class="stack tight">
+          <p class="small" style={{ fontWeight: 700 }}>
+            {SCENE_LABEL[sc] ?? sc}
+          </p>
+          <ul class="stack tight" style={{ paddingLeft: '18px' }}>
+            {rules
+              .filter((r) => r.scene === sc)
+              .map((r, i) => (
+                <li key={i} class="small">
+                  {r.text}
+                </li>
+              ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function CoachScreen() {
   const view = coachView.value;
   return (
-    <div class="page">
+    <div class="page wide">
       <TopBar title="教练" />
+      <div class="coach-col">
       <div class="coach-tabs" role="tablist" aria-label="教练">
         {VIEWS.map((v) => (
           <button type="button" role="tab" key={v.id} class="chip" aria-selected={view === v.id} aria-pressed={view === v.id} onClick={() => (coachView.value = v.id)}>
@@ -55,6 +88,7 @@ export function CoachScreen() {
         ))}
       </div>
       {view === 'chat' ? <ChatView /> : view === 'plan' ? <PlanView /> : view === 'review' ? <ReviewView /> : <MemoryView />}
+      </div>
     </div>
   );
 }
@@ -142,7 +176,7 @@ function ChatView() {
               >
                 <span style={{ fontWeight: c.id === thread?.id ? 700 : 500 }}>{c.title}</span>
                 <span class="xs muted" style={{ display: 'block' }}>
-                  {formatDate(new Date(c.updatedAt).toISOString().slice(0, 10))} · {c.messages.length} 条
+                  {tsDate(c.updatedAt)} · {c.messages.length} 条
                 </span>
               </button>
               <button type="button" class="icon-btn" aria-label={`删除对话 ${c.title}`} onClick={() => void deleteThread(c.id)}>
@@ -244,7 +278,7 @@ function ActionChip({ action, thread, index }: { action: ProposedAction; thread:
   const [busy, setBusy] = useState(false);
   const label =
     action.type === 'memory'
-      ? `记住（${action.category}）：${action.text}`
+      ? action.text
       : action.type === 'task'
         ? `加到本周计划：${action.text}`
         : `记录到 ${formatDate(action.date)}：${describePatch(action.patch).join('、') || action.summary}`;
@@ -260,7 +294,10 @@ function ActionChip({ action, thread, index }: { action: ProposedAction; thread:
   return (
     <div class="action-chip">
       <Icon name={icon} />
-      <span class="grow">{label}</span>
+      <span class="grow">
+        {action.type === 'memory' ? <span class="pill" style={{ marginRight: '6px' }}>记住 · {action.category}</span> : null}
+        {label}
+      </span>
       {action.state === 'accepted' ? (
         <span class="pill good">已确认</span>
       ) : action.state === 'dismissed' ? (
@@ -285,20 +322,20 @@ function PlanView() {
   const plan = activePlan.value;
   const t = targets.value;
   const [draft, setDraft] = useState('');
-  const scenes = Array.from(new Set(plan.rules.map((r) => r.scene)));
   const history = plans.value.filter((p) => p.id !== plan.id).sort((a, b) => b.createdAt - a.createdAt);
   const [open, setOpen] = useState<string | null>(null);
   const tgt: [string, string][] = [
-    ['每晚最多起来', `${t.refitCap} 次`],
+    ['每晚最多重铺', `${t.refitCap} 次`],
     ['冲动先等', `${t.urgeDelayMin} 分钟`],
-    ['暴露练习', `每周 ${t.exposurePerWeek} 次 × ${t.exposureMin} 分钟`],
+    ['暴露练习', `每周 ${t.exposurePerWeek} 次`],
+    ['每次暴露', `${t.exposureMin} 分钟`],
     ['午睡训练', `${t.napMin} 分钟`],
-    ['起床 / 上床', `${t.wakeTime} / ${t.bedTime}`],
-    ['每天吃', `${t.mealsPerDay} 次，慢 ${t.slowMealsPerDay} 次`],
+    ['起床 · 上床', `${t.wakeTime} · ${t.bedTime}`],
+    ['每天吃', `${t.mealsPerDay} 餐，${t.slowMealsPerDay} 餐慢慢吃`],
     ['冥想', `每天 ${t.meditationMin} 分钟`],
     ['活动', `每天 ${t.moveMin} 分钟`],
     ['力量训练', `每周 ${t.exercisePerWeek} 次`],
-    ['坐站', `坐 ${t.sitMin} / 站 ${t.standMin} 分钟`],
+    ['坐 · 站（分钟）', `${t.sitMin} · ${t.standMin}`],
   ];
   return (
     <div class="stack loose">
@@ -307,7 +344,7 @@ function PlanView() {
           <p class="eyebrow">
             {plan.phase} · {formatDate(plan.weekStart)} 起
           </p>
-          <h2>{plan.title}</h2>
+          <h2>{planLabel(plan, plans.value)}</h2>
           <p class="soft">{plan.focus}</p>
           <div class="row wrap">
             <span class="pill">{{ template: '起步模板', review: '来自每周复盘', user: '自己改过', seed: '初始计划' }[plan.source]}</span>
@@ -323,22 +360,7 @@ function PlanView() {
             </ul>
           </Callout>
         ) : null}
-        {scenes.map((sc) => (
-          <div key={sc} class="stack tight">
-            <p class="small" style={{ fontWeight: 700 }}>
-              {SCENE_LABEL[sc] ?? sc}
-            </p>
-            <ul class="stack tight" style={{ paddingLeft: '18px' }}>
-              {plan.rules
-                .filter((r) => r.scene === sc)
-                .map((r, i) => (
-                  <li key={i} class="small">
-                    {r.text}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        ))}
+        <RuleGroups rules={plan.rules} />
         <div class="target-grid">
           {tgt.map(([k, v]) => (
             <div class="t" key={k}>
@@ -401,10 +423,11 @@ function PlanView() {
         </form>
       </section>
 
-      <section class="card stack">
-        <div class="section-head">
-          <h2>记忆和计划怎么运作</h2>
-        </div>
+      <details class="card stack explainer">
+        <summary>
+          <Icon name="info" size={18} />
+          教练怎么记住你、怎么调整计划
+        </summary>
         <ol class="layers">
           <li>
             <span>
@@ -418,7 +441,7 @@ function PlanView() {
           </li>
           <li>
             <span>
-              <b>每周复盘</b>：把一周的记录压成几句话和下周的调整。复盘越多，教练看得越远，又不用每次读完所有记录。
+              <b>每周复盘</b>：把一周的记录压成几句话和下周的调整。一周周积累下来，教练能看到几个月的变化。
             </span>
           </li>
           <li>
@@ -431,7 +454,7 @@ function PlanView() {
           <Icon name="target" />
           看长期目标
         </button>
-      </section>
+      </details>
 
       {history.length ? (
         <section class="card stack">
@@ -443,7 +466,7 @@ function PlanView() {
               <div class="history-item" key={p.id}>
                 <button type="button" class="row between" style={{ border: 0, background: 'none', padding: 0, color: 'inherit', textAlign: 'left', width: '100%' }} aria-expanded={open === p.id} onClick={() => setOpen(open === p.id ? null : p.id)}>
                   <span>
-                    <b>{p.title}</b>
+                    <b>{planLabel(p, plans.value)}</b>
                     <span class="xs muted" style={{ display: 'block' }}>
                       {formatDate(p.weekStart)} 起 · {p.phase}
                     </span>
@@ -536,6 +559,12 @@ function ReviewView() {
 
 const DECISION = { advance: '前进一步', hold: '保持', 'step-back': '退一步' } as const;
 
+/** Whether anything in the reviewed week was logged after the review was written. */
+function weekChangedSince(review: Review): boolean {
+  const all = allDays.value;
+  return weekDates(review.weekStart).some((d) => (all[d]?.updatedAt ?? 0) > review.createdAt + 3000);
+}
+
 function ReviewCard({ review }: { review: Review }) {
   const [reflection, setReflection] = useState(review.reflection ?? '');
   const [busy, setBusy] = useState(false);
@@ -577,13 +606,7 @@ function ReviewCard({ review }: { review: Review }) {
           <p style={{ fontWeight: 700 }}>{prop.title}</p>
           <p class="small soft">{prop.focus}</p>
           {review.changes?.length ? list('改了什么', review.changes) : null}
-          <ul class="stack tight small" style={{ paddingLeft: '18px' }}>
-            {prop.rules.map((r, i) => (
-              <li key={i}>
-                [{SCENE_LABEL[r.scene] ?? r.scene}] {r.text}
-              </li>
-            ))}
-          </ul>
+          <RuleGroups rules={prop.rules} />
           {prop.tasks.length ? list('任务', prop.tasks) : null}
           {adopted ? (
             <span class="pill good" style={{ justifySelf: 'start' }}>
@@ -650,10 +673,12 @@ function ReviewCard({ review }: { review: Review }) {
           保存
         </button>
       </div>
-      <button type="button" class="btn sm ghost" style={{ justifySelf: 'start' }} disabled={reviewBusy.value || !aiReady()} onClick={() => void runReview(review.weekStart)}>
-        <Icon name="refresh" />
-        重新复盘
-      </button>
+      {weekChangedSince(review) ? (
+        <button type="button" class="btn sm ghost" style={{ justifySelf: 'start' }} disabled={reviewBusy.value || !aiReady()} onClick={() => void runReview(review.weekStart)}>
+          <Icon name="refresh" />
+          这周又有新记录，按新记录重新复盘
+        </button>
+      ) : null}
     </section>
   );
 }
@@ -742,7 +767,7 @@ function MemoryRow({ m }: { m: MemoryItem }) {
           </p>
         )}
         <span class="xs muted">
-          {m.category} · {{ user: '你写的', ai: '教练提议', seed: '初始资料' }[m.source]} · {formatDate(new Date(m.createdAt).toISOString().slice(0, 10))}
+          {m.category} · {{ user: '你写的', ai: '教练提议', seed: '初始资料' }[m.source]} · {tsDate(m.createdAt)}
         </span>
       </div>
       <div class="row">

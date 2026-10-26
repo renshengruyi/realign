@@ -245,7 +245,7 @@ export function ExposureTool({ kind: initialKind }: { kind?: ErpSession['kind'] 
                       ? '和你预测的一样'
                       : `比预测高 ${peak - predicted} 分，记下来也是证据`
                   : '',
-                `练了 ${formatDuration(Math.min(sw.elapsed, total))}`,
+                `练了 ${Math.max(1, Math.round(Math.min(sw.elapsed, total) / 60))} 分钟`,
                 moved ? `动了 ${moved} 次` : '一次没动',
               ]
                 .filter(Boolean)
@@ -253,8 +253,15 @@ export function ExposureTool({ kind: initialKind }: { kind?: ErpSession['kind'] 
             </p>
           </div>
           {ratings.length >= 2 ? <CurveChart ratings={ratings} minutes={minutes} color="var(--c-sleep)" /> : null}
-          <Field label="实际怎样？">
-            <TextArea label="实际怎样" rows={2} value={outcome} onInput={setOutcome} placeholder={fear ? `你担心：${fear}` : '例如：一开始很想调，十分钟后没那么在意了'} />
+          <Field label="实际怎样？（可不填）">
+            <div class="seg" role="group" aria-label="和预想比">
+              {['比想的轻', '差不多', '比想的难'].map((c) => (
+                <button type="button" key={c} aria-pressed={outcome === c} onClick={() => setOutcome(outcome === c ? '' : c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
+            <TextArea label="实际怎样" rows={2} value={['比想的轻', '差不多', '比想的难'].includes(outcome) ? '' : outcome} onInput={setOutcome} placeholder={fear ? `你担心：${fear}` : '或者写一句：一开始很想调，十分钟后没那么在意了'} />
           </Field>
           <Field label="学到了什么？（可不填）">
             <TextArea label="学到了什么" rows={2} value={learned} onInput={setLearned} placeholder="例如：不处理它，也没有发生什么坏事" />

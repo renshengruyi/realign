@@ -42,13 +42,15 @@ export const COACH_RULES = `你是「回正」健康管理应用里的教练。�
 原则
 - ERP：目标不是让不适感消失，而是不做仪式也能照常生活、照样睡着。“卡着也睡着了”才是真正的进展，运气好的晚上不算。
 - 不给反复的安慰保证。用户一再追问“会不会有事”“是不是没救了”这类问题时，温和地指出这可能是在寻求确认，把注意力带回行为和计划。
+- 不建议靠换被子、衣服、铺法或环境去躲开那个感觉。选舒服的材质可以，但为了让感觉“对”而反复换东西、找“正确”的东西，是换了形式的回避；这类念头可以写进触发清单，变成练习素材。
+- 用词统一：夜里下床重新铺被子、调整衣服叫“重铺”；睡不着超过 20 分钟离开床叫“离床”。
 - 睡眠：固定起床时间；躺 20 分钟还在较劲就离床；白天补觉不超过 20 分钟；床头不看时间。
 - 饮食：照顾胃、帮助增重。少量多餐、细嚼慢咽、七分饱；晚餐离上床 3 小时以上；饭后不立刻平躺。
 - 运动：先体态和轻力量，循序渐进，痛就停。
 - 不做诊断、不开药。出现这些情况，明确建议尽快就医：体重持续下降、黑便或吐血、吞咽困难、持续或剧烈腹痛、尿血或排尿困难、发烧、胸痛、严重失眠影响安全。情绪低落到有伤害自己的念头时，建议立刻联系身边的人，并拨打台湾安心专线 1925。
 - 只根据记录下结论。数据不够就直说，并说清楚要记什么。
 
-记录里的“重铺”指夜里下床重新铺被子或调整衣服的次数；“不适”是 0–10 分；“精力”“心情”是 1–5 分。`;
+记录里的“重铺”指夜里下床重新铺被子或调整衣服的次数；“不适”和触发清单的难受分都是 0–10 分；“精力”“心情”是 1–5 分。`;
 
 export const ACTIONS_SPEC = `如果对话里出现：值得长期记住的事实或偏好、应该加进本周计划的任务、或者用户口头报告了可以记下来的数据，就在回复最后附一个代码块（没有就不附）：
 \`\`\`actions
@@ -227,11 +229,12 @@ export function buildContext(c: ContextInput, opts: { days?: number } = {}): str
   const trig = c.triggers
     .slice()
     .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
-    .map((t) => `- ${t.text}${t.score !== undefined ? ` ${t.score} 分` : ''}${t.status === 'done' ? '（已掌握）' : t.status === 'practicing' ? '（练习中）' : ''}`)
+    .map((t) => `- ${t.text}${t.score !== undefined ? ` ${t.score} 分` : ''}${t.status === 'done' ? '（已适应）' : t.status === 'practicing' ? '（练习中）' : ''}`)
     .join('\n');
   const rit = c.rituals.map((r) => `- ${r.text}（${{ active: '还在做', reducing: '在减少', dropped: '已放下' }[r.status]}）`).join('\n');
 
-  return `今天是 ${formatDate(c.today, { weekday: true, year: true })}，现在 ${c.nowHM}（台北时间）。
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `今天是 ${formatDate(c.today, { weekday: true, year: true })}，现在 ${c.nowHM}（当地时间 ${tz}）。
 
 【用户】
 ${profileText(c.profile, c.latestWeightKg, c.today)}
@@ -245,7 +248,7 @@ ${goals || '（还没有）'}
 【本周计划】
 ${planText(c.plan, c.targets)}
 
-【触发清单（0–100 难受分）】
+【触发清单（0–10 难受分）】
 ${trig || '（还没填）'}
 
 【处理动作清单】
@@ -441,10 +444,10 @@ ${context}
 ${table}
 ${prev ? `上一次复盘的结论：${prev.summary}` : ''}
 
-ERP 进阶参考：守住上限的晚上 ≥5 晚、暴露练习完成 ≥5 次且结束分数比开始低，可以前进一步（上限减 1，或从触发清单里选更难的情境，或加入“故意铺不好就躺下”）；记录太少就先保持，把重点放在记录；明显变糟就退一步。连续几周完全没有松动，或焦虑明显加重，要在 referral 里建议面对面评估（身心科 / 精神科，或做 ERP 的临床心理师）。
+ERP 进阶参考：守住上限的晚上 ≥5 晚、暴露练习完成 ≥5 次且结束分数比开始低，可以前进一步（上限减 1，或从触发清单里选更难的情境，或加入“故意铺不好就躺下”）；不要用换被子、换衣服来降低难度；记录太少就先保持，把重点放在记录；明显变糟就退一步。连续几周完全没有松动，或焦虑明显加重，要在 referral 里建议面对面评估（身心科 / 精神科，或做 ERP 的临床心理师）。
 
 只回复一个 JSON 对象，不要别的文字：
-{"summary":"2–3 句总评","wins":["做得好的地方"],"struggles":["卡住的地方"],"insights":["从数据里看到的规律，没有就空数组"],"erp":{"decision":"advance|hold|step-back","rationale":"一句话"},"nextWeek":{"title":"例如 第 2 周 · 上限降到 1 次","phase":"阶段名","focus":"一句话重点","rules":[{"scene":"night|nap|day|base|body|mind","text":"具体规则"}],"targets":{"refitCap":1,"exposurePerWeek":7,"mealsPerDay":5,"slowMealsPerDay":3,"meditationMin":20,"moveMin":30,"exercisePerWeek":3,"focusBlocks":4},"tasks":["本周要完成的具体任务"]},"changes":["和本周相比改了什么"],"memories":[{"text":"值得长期记住的新发现","category":"睡眠"}],"referral":"需要就医或面对面评估就写一句，否则空字符串"}
+{"summary":"2–3 句总评","wins":["做得好的地方"],"struggles":["卡住的地方"],"insights":["从数据里看到的规律，没有就空数组"],"erp":{"decision":"advance|hold|step-back","rationale":"一句话"},"nextWeek":{"title":"这一周的主题，8 个字以内，不写第几周，例如：上限降到 1 次","phase":"阶段名，用大白话","focus":"一句话重点","rules":[{"scene":"night|nap|day|base|body|mind","text":"具体规则"}],"targets":{"refitCap":1,"exposurePerWeek":7,"mealsPerDay":5,"slowMealsPerDay":3,"meditationMin":20,"moveMin":30,"exercisePerWeek":3,"focusBlocks":4},"tasks":["本周要完成的具体任务"]},"changes":["和本周相比改了什么"],"memories":[{"text":"值得长期记住的新发现","category":"睡眠"}],"referral":"需要就医或面对面评估就写一句，否则空字符串"}
 rules 要完整列出下一周的所有规则（不是只写变化），沿用的规则照抄。targets 只写要改的项。`;
 }
 

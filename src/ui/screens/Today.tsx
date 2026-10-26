@@ -1,11 +1,11 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { describePatch, quickLogPrompt, sanitizePatch } from '../../domain/ai';
 import { addDays, formatDate, greeting, hmToMin, minToHM, nowHM, nowMin, rangeDates, weekday, weekStartOf } from '../../domain/dates';
-import { RHYTHM_KIND_LABEL } from '../../domain/defaults';
 import {
   computeSeals,
   computeWeekStats,
   latestWeight,
+  moveMinutes,
   nightRefits,
   rhythmDone,
   rhythmForDate,
@@ -25,25 +25,27 @@ import {
   days,
   loaded,
   mergeDocument,
-  settings,
   notify,
   patchDay,
+  plans,
   profile,
   reviews,
   rhythm,
+  settings,
   targets,
   today,
   updateDayList,
 } from '../../platform/store';
 import { actionsFor } from '../actions';
-import { applyLogPatch } from '../logs';
 import { briefBusy, briefError, generateBrief } from '../brief';
 import { Sparkline } from '../components/charts';
 import { Callout, Thinking } from '../components/controls';
 import { Icon } from '../components/Icon';
 import { Seal } from '../components/Seal';
 import { TopBar } from '../components/TopBar';
+import { applyLogPatch } from '../logs';
 import { askCoach, coachView, go, openSheet, openTool, reviewWeekHint } from '../nav';
+import { planLabel } from '../planning';
 
 export function TodayScreen() {
   const date = today.value;
@@ -54,6 +56,33 @@ export function TodayScreen() {
   const items = rhythmForDate(rhythm.value, date);
   const bedMin = hmToMin(t.bedTime) ?? 23 * 60;
   const night = minute >= bedMin - 30 || minute < 5 * 60;
+  const [showAll, setShowAll] = useState(false);
+
+  // From half an hour before bed: only what the night needs. No clock, no lists.
+  if (night && !showAll) {
+    const pmDone = !!day?.eveningAt;
+    return (
+      <div class="page">
+        <TopBar />
+        <header class="hero">
+          <h1 class="hero-title">{minute < 5 * 60 ? '夜里' : '该准备睡了'}</h1>
+          <p class="small soft">今晚只做一件事：照规则来，睡得怎样都可以。</p>
+        </header>
+        <NightCard />
+        <div class="btn-row">
+          {!pmDone && minute >= 18 * 60 ? (
+            <button type="button" class="btn sm" onClick={() => openSheet('checkin-pm')}>
+              <Icon name="pen" />
+              晚间打卡
+            </button>
+          ) : null}
+          <button type="button" class="btn sm ghost" onClick={() => setShowAll(true)}>
+            看全部
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div class="page wide">
@@ -86,15 +115,6 @@ export function TodayScreen() {
 
 function Hero({ day }: { day: DayDoc | undefined }) {
   const plan = activePlan.value;
-  const s = day?.sleep;
-  const h = sleepHours(s);
-  const r = nightRefits(day);
-  const bits = [
-    h !== undefined ? `睡了约 ${round1(h)} 小时` : '',
-    r !== undefined ? `起来重铺 ${r} 次` : '',
-    s?.maxDiscomfort !== undefined ? `最高不适 ${s.maxDiscomfort}` : '',
-    s?.stuckButSlept ? '卡着也睡着了' : '',
-  ].filter(Boolean);
   return (
     <header class="hero">
       <p class="eyebrow">{formatDate(today.value, { weekday: true })}</p>
@@ -102,7 +122,7 @@ function Hero({ day }: { day: DayDoc | undefined }) {
       <div class="row wrap">
         <button type="button" class="pill primary" onClick={() => askCoachPlan()}>
           <Icon name="flag" />
-          {plan.title}
+          {planLabel(plan, plans.value)}
         </button>
         {plan.tasks.length ? (
           <button type="button" class="pill" onClick={() => askCoachPlan()}>
@@ -110,14 +130,63 @@ function Hero({ day }: { day: DayDoc | undefined }) {
             本周任务 {plan.tasks.filter((x) => x.done).length}/{plan.tasks.length}
           </button>
         ) : null}
-        {bits.length ? (
-          <span class="pill">
-            <Icon name="moon" />
-            昨晚 {bits.join(' · ')}
-          </span>
-        ) : null}
       </div>
+      <Glance day={day} />
     </header>
+  );
+}
+
+/** Three numbers that answer "how am I doing" before any scrolling. */
+function Glance({ day }: { day: DayDoc | undefined }) {
+  const all = allDays.value;
+  const date = today.value;
+  const h = sleepHours(day?.sleep);
+  const r = nightRefits(day);
+  const gutToday = day?.gut?.discomfort;
+  const gutYesterday = all[addDays(date, -1)]?.gut?.discomfort;
+  const last7 = rangeDates(addDays(date, -6), date);
+  const energy = avg(last7.flatMap((d) => [all[d]?.energy?.am, all[d]?.energy?.pm]));
+  const logged = !!day?.sleep?.loggedAt;
+  return (
+    <div class="glance" role="group" aria-label="现在的状态">
+      <button type="button" onClick={() => (logged ? go('trends') : openSheet('checkin-am'))}>
+        <span class="g-label">
+          <Icon name="moon" size={13} />
+          昨晚
+        </span>
+        <span class="g-value">
+          {logged ? (
+            <>
+              {h !== undefined ? `${round1(h)} 时` : '—'}
+              <small> · 重铺 {r ?? 0}</small>
+            </>
+          ) : (
+            <small>还没打卡</small>
+          )}
+        </span>
+        {day?.sleep?.stuckButSlept ? <span class="g-note">卡着也睡着了</span> : null}
+      </button>
+      <button type="button" onClick={() => go('trends')}>
+        <span class="g-label">
+          <Icon name="drop" size={13} />
+          胃 · {gutToday !== undefined ? '今天' : '昨天'}
+        </span>
+        <span class="g-value">
+          {gutToday ?? gutYesterday ?? '—'}
+          {gutToday !== undefined || gutYesterday !== undefined ? <small>/10</small> : null}
+        </span>
+      </button>
+      <button type="button" onClick={() => go('trends')}>
+        <span class="g-label">
+          <Icon name="lightning" size={13} />
+          精力 · 近 7 天
+        </span>
+        <span class="g-value">
+          {energy !== undefined ? round1(energy) : '—'}
+          {energy !== undefined ? <small>/5</small> : null}
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -156,7 +225,7 @@ function IntroCard() {
         <button type="button" class="btn primary sm" onClick={() => void mergeDocument('settings/main', { introDone: true })}>
           知道了
         </button>
-        <button type="button" class="btn sm ghost" onClick={() => (coachView.value = 'plan', go('coach'))}>
+        <button type="button" class="btn sm ghost" onClick={() => askCoachPlan()}>
           先看本周计划
         </button>
       </div>
@@ -166,18 +235,50 @@ function IntroCard() {
 
 // ---------------------------------------------------------------- seals
 
+const SEEN_KEY = 'realign:seals-seen';
+
+/** Seals completed elsewhere (in a tool, on another tab) stamp on the next look. */
+function useFreshSeals(date: string, seals: SealState[]): Set<string> {
+  const done = seals.filter((s) => s.done).map((s) => s.key);
+  const fresh = useMemo(() => {
+    let seen: string[] = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as { date?: string; keys?: string[] };
+      seen = raw.date === date ? raw.keys ?? [] : [];
+    } catch {
+      /* no storage: just don't replay */
+    }
+    return new Set(done.filter((k) => !seen.includes(k)));
+  }, [date, done.join()]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(SEEN_KEY, JSON.stringify({ date, keys: done }));
+    } catch {
+      /* ignore */
+    }
+  }, [date, done.join()]);
+  return fresh;
+}
+
 function SealsCard({ seals }: { seals: SealState[] }) {
+  const fresh = useFreshSeals(today.value, seals);
   const done = seals.filter((s) => s.done).length;
   return (
     <section class="card" style={{ order: 1 }} aria-label="今日四印">
       <div class="section-head">
         <h2>今日四印</h2>
-        <span class="small muted">{done ? `已盖 ${done} 枚` : '做完一项，盖一枚章'}</span>
+        <span class="small muted">{done ? `已盖 ${done} 枚` : '看你做没做，不看结果'}</span>
       </div>
       <div class="seals" style={{ marginTop: '14px' }}>
         {seals.map((s) => (
-          <button type="button" class="seal-btn" key={s.key} onClick={() => openSheet('seal', { key: s.key })} aria-label={`${s.char}：${s.parts.map((p) => `${p.label}${p.done ? '，已完成' : ''}`).join('；')}`}>
-            <Seal state={s} />
+          <button
+            type="button"
+            class="seal-btn"
+            key={s.key}
+            onClick={() => openSheet('seal', { key: s.key })}
+            aria-label={`${s.char}：${s.parts.map((p) => `${p.label}${p.done ? '，已完成' : ''}`).join('；')}`}
+          >
+            <Seal state={s} stamp={fresh.has(s.key)} />
             <span class="seal-label">
               {s.parts.filter((p) => p.done).length}/{s.parts.length}
             </span>
@@ -191,13 +292,12 @@ function SealsCard({ seals }: { seals: SealState[] }) {
 // ---------------------------------------------------------------- now
 
 function NowCard({ items, day, minute }: { items: RhythmItem[]; day: DayDoc | undefined; minute: number }) {
-  const { current, next, overdue } = rhythmNow(items, day, minute);
+  const { current, next } = rhythmNow(items, day, minute);
   const item = current ?? next;
   return (
     <section class="card now-card" style={{ order: 2 }} aria-label="此刻">
       <div class="section-head">
         <h2>{current ? '此刻' : '接下来'}</h2>
-        {overdue.length ? <span class="small muted">前面有 {overdue.length} 项还没打勾</span> : null}
       </div>
       {item ? (
         <div class="stack" style={{ marginTop: '10px' }}>
@@ -205,11 +305,11 @@ function NowCard({ items, day, minute }: { items: RhythmItem[]; day: DayDoc | un
             <span class="now-time num">{item.time}</span>
             <div class="grow">
               <p class="now-title">{item.title}</p>
-              <p class="small muted">
-                {RHYTHM_KIND_LABEL[item.kind]}
-                {item.durationMin ? ` · ${item.durationMin} 分钟` : ''}
-                {!current && next ? ` · ${untilText(hmToMin(item.time)! - minute)}` : ''}
-              </p>
+              {item.durationMin || (!current && next) ? (
+                <p class="small muted">
+                  {[item.durationMin ? `${item.durationMin} 分钟` : '', !current && next ? untilText(hmToMin(item.time)! - minute) : ''].filter(Boolean).join(' · ')}
+                </p>
+              ) : null}
             </div>
           </div>
           {item.note ? <p class="small soft">{item.note}</p> : null}
@@ -235,27 +335,27 @@ function untilText(min: number): string {
   if (min < 60) return `${min} 分钟后`;
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m ? `${h} 小时 ${m} 分后` : `${h} 小时后`;
+  return m ? `${h} 小时 ${m} 分钟后` : `${h} 小时后`;
 }
 
 function NightCard() {
   const t = targets.value;
-  const night = dayOf(nightDate())?.urges?.filter((u) => u.decision === 'got-up').length ?? 0;
+  const ups = dayOf(nightDate())?.urges?.filter((u) => u.decision === 'got-up').length ?? 0;
   return (
     <section class="card night-card" style={{ order: 2 }} aria-label="今晚">
       <div class="section-head">
         <h2>今晚</h2>
         <span class="small muted num">
-          已起来 {night}/{t.refitCap} 次
+          已重铺 {ups}/{t.refitCap} 次
         </span>
       </div>
       <ul class="stack tight small soft" style={{ marginTop: '10px', paddingLeft: '18px' }}>
         <li>冲动来了，先躺着不动 {t.urgeDelayMin} 分钟，观察它。</li>
-        <li>一晚最多起来 {t.refitCap} 次，之后就留在床上，允许它卡着。</li>
-        <li>较劲 20 分钟以上就去别的房间，有困意再回来。</li>
+        <li>一晚最多重铺 {t.refitCap} 次，之后留在床上，让它卡着。</li>
+        <li>睡不着超过 20 分钟：去别的房间坐坐，回来直接躺下，不碰床铺。</li>
       </ul>
-      <div class="btn-row" style={{ marginTop: '12px' }}>
-        <button type="button" class="btn primary" onClick={() => openTool('night')}>
+      <div class="btn-row" style={{ marginTop: '14px' }}>
+        <button type="button" class="btn primary lg" onClick={() => openTool('night')}>
           <Icon name="moon" />
           冲动来了
         </button>
@@ -287,7 +387,7 @@ function dueReviewWeek(minute: number): string | null {
 function CheckinCards({ day, minute }: { day: DayDoc | undefined; minute: number }) {
   const amDone = !!day?.sleep?.loggedAt;
   const pmDone = !!day?.eveningAt;
-  const showAm = !amDone && minute >= 4 * 60;
+  const showAm = !amDone && minute >= 4 * 60 && minute < 14 * 60;
   const showPm = !pmDone && minute >= 18 * 60;
   const reviewWeek = dueReviewWeek(minute);
   if (!showAm && !showPm && !reviewWeek) return null;
@@ -320,7 +420,7 @@ function CheckinCards({ day, minute }: { day: DayDoc | undefined; minute: number
           </span>
           <span class="grow">
             <b>晨间打卡</b>
-            <span class="small muted">一分钟，记下昨晚：几点睡、起来几次、多难受</span>
+            <span class="small muted">一分钟，记下昨晚：几点睡、重铺几次、多难受</span>
           </span>
           <Icon name="chev-r" />
         </button>
@@ -332,7 +432,7 @@ function CheckinCards({ day, minute }: { day: DayDoc | undefined; minute: number
           </span>
           <span class="grow">
             <b>晚间打卡</b>
-            <span class="small muted">精力、胃、心情，加三行日记</span>
+            <span class="small muted">精力、胃、心情，日记可写可不写</span>
           </span>
           <Icon name="chev-r" />
         </button>
@@ -344,47 +444,20 @@ function CheckinCards({ day, minute }: { day: DayDoc | undefined; minute: number
 // ---------------------------------------------------------------- timeline
 
 function TimelineCard({ items, day, minute }: { items: RhythmItem[]; day: DayDoc | undefined; minute: number }) {
+  const [expanded, setExpanded] = useState(false);
   const { current } = rhythmNow(items, day, minute);
-  const nowIndex = items.findIndex((i) => (hmToMin(i.time) ?? 0) > minute);
-  const toggle = (item: RhythmItem, done: boolean) => {
-    void patchDay(today.value, { checks: { [item.id]: !done } });
-  };
-  return (
-    <section class="card" style={{ order: 8 }} id="timeline" aria-label="今日节奏">
-      <div class="section-head">
-        <h2>今日节奏</h2>
-        <button type="button" class="link" onClick={() => openSheet('rhythm')}>
-          编辑作息
-        </button>
-      </div>
-      <ol class="timeline" style={{ marginTop: '10px' }}>
-        {timelineRows(items, day, minute, current?.id, nowIndex, toggle)}
-      </ol>
-    </section>
-  );
-}
+  const toggle = (item: RhythmItem, done: boolean) => void patchDay(today.value, { checks: { [item.id]: !done } });
+  const start = (i: RhythmItem) => hmToMin(i.time) ?? 0;
+  const past = items.filter((i) => start(i) <= minute && i.id !== current?.id);
+  const upcoming = items.filter((i) => start(i) > minute);
+  const pastDone = past.filter((i) => rhythmDone(i, day, items)).length;
 
-function timelineRows(
-  items: RhythmItem[],
-  day: DayDoc | undefined,
-  minute: number,
-  currentId: string | undefined,
-  nowIndex: number,
-  toggle: (item: RhythmItem, done: boolean) => void,
-) {
-  const rows = [];
-  const nowRow = (
-    <li class="tl-now" key="now" aria-label={`现在 ${minToHM(minute)}`}>
-      <span>{minToHM(minute)}</span>
-    </li>
-  );
-  items.forEach((item, i) => {
-    if (i === nowIndex) rows.push(nowRow);
+  const row = (item: RhythmItem, cls = '') => {
     const done = rhythmDone(item, day, items);
-    const isCurrent = currentId === item.id;
+    const isCurrent = current?.id === item.id;
     const acts = actionsFor(item);
-    rows.push(
-      <li key={item.id} class={`tl-item${done ? ' done' : ''}${isCurrent ? ' current' : ''}`}>
+    return (
+      <li key={item.id} class={`tl-item${done ? ' done' : ''}${isCurrent ? ' current' : ''}${cls}`}>
         <span class="tl-time">{item.time}</span>
         <span class="tl-node" />
         <button type="button" class="tl-main" onClick={() => (acts[0] ? acts[0].run() : toggle(item, done))}>
@@ -393,20 +466,68 @@ function timelineRows(
             <p class="n">{[item.durationMin ? `${item.durationMin} 分钟` : '', isCurrent ? item.note : ''].filter(Boolean).join(' · ')}</p>
           ) : null}
         </button>
-        <button
-          type="button"
-          class="check-btn"
-          aria-pressed={done}
-          aria-label={`${item.title}${done ? '已完成' : '标记完成'}`}
-          onClick={() => toggle(item, done)}
-        >
+        <button type="button" class="check-btn" aria-pressed={done} aria-label={`${item.title}${done ? '已完成' : '标记完成'}`} onClick={() => toggle(item, done)}>
           <Icon name="check" />
         </button>
-      </li>,
+      </li>
     );
-  });
-  if (nowIndex === -1) rows.push(nowRow);
-  return rows;
+  };
+  const nowRow = (
+    <li class="tl-now" key="now" aria-label={`现在 ${minToHM(minute)}`}>
+      <span>{minToHM(minute)}</span>
+    </li>
+  );
+  const foldRow = (key: string, text: string) => (
+    <li key={key} class="tl-fold">
+      <button type="button" onClick={() => setExpanded(true)}>
+        {text}
+        <Icon name="chev-d" size={16} />
+      </button>
+    </li>
+  );
+
+  let rows;
+  if (expanded) {
+    rows = [];
+    let placed = false;
+    for (const item of items) {
+      if (!placed && start(item) > minute) {
+        rows.push(nowRow);
+        placed = true;
+      }
+      rows.push(row(item, start(item) <= minute && item.id !== current?.id ? ' past' : ''));
+    }
+    if (!placed) rows.push(nowRow);
+  } else {
+    rows = [
+      past.length ? foldRow('past', `已过去 ${past.length} 项${pastDone ? ` · 做了 ${pastDone} 项` : ''}`) : null,
+      current ? row(current) : null,
+      nowRow,
+      ...upcoming.slice(0, 2).map((i) => row(i)),
+      upcoming.length > 2 ? foldRow('more', `之后还有 ${upcoming.length - 2} 项`) : null,
+    ];
+  }
+
+  return (
+    <section class="card" style={{ order: 8 }} id="timeline" aria-label="今日节奏">
+      <div class="section-head">
+        <h2>今日节奏</h2>
+        <div class="row">
+          {expanded ? (
+            <button type="button" class="link" onClick={() => setExpanded(false)}>
+              收起
+            </button>
+          ) : null}
+          <button type="button" class="link" onClick={() => openSheet('rhythm')}>
+            编辑作息
+          </button>
+        </div>
+      </div>
+      <ol class="timeline" style={{ marginTop: '10px' }}>
+        {rows}
+      </ol>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------- brief
@@ -415,6 +536,10 @@ function BriefCard({ day }: { day: DayDoc | undefined }) {
   const brief = day?.brief;
   const ready = aiReady();
   if (!ready && !brief) return null;
+  // regenerate only when something was logged after the brief was written
+  const stale = !!brief && (day?.updatedAt ?? 0) > brief.generatedAt + 3000;
+  const top3 = day?.top3 ?? [];
+  const addToTop3 = (title: string) => void updateDayList(today.value, 'top3', (l) => [...l, { id: newId('t'), text: title, done: false }].slice(0, 3));
   return (
     <section class="card brief" style={{ order: 4 }} aria-label="教练的今日简报">
       <div class="section-head">
@@ -422,9 +547,10 @@ function BriefCard({ day }: { day: DayDoc | undefined }) {
           <Icon name="sparkle" size={18} />
           今日简报
         </h2>
-        {ready && brief ? (
-          <button type="button" class="icon-btn" aria-label="重新生成简报" disabled={briefBusy.value} onClick={() => generateBrief()}>
+        {ready && stale ? (
+          <button type="button" class="btn sm ghost" disabled={briefBusy.value} onClick={() => generateBrief()}>
             <Icon name="refresh" />
+            按新记录更新
           </button>
         ) : null}
       </div>
@@ -437,12 +563,23 @@ function BriefCard({ day }: { day: DayDoc | undefined }) {
           <p class="brief-head display">{brief.headline}</p>
           {brief.focus.length ? (
             <ol class="brief-list">
-              {brief.focus.map((f, i) => (
-                <li key={i}>
-                  <b>{f.title}</b>
-                  {f.why ? <span class="small muted">{f.why}</span> : null}
-                </li>
-              ))}
+              {brief.focus.map((f, i) => {
+                const added = top3.some((x) => x.text === f.title);
+                return (
+                  <li key={i}>
+                    <b>{f.title}</b>
+                    {f.why ? <span class="small muted">{f.why}</span> : null}
+                    {added ? (
+                      <span class="xs muted">已在今天三件事里</span>
+                    ) : top3.length < 3 ? (
+                      <button type="button" class="link-btn" onClick={() => addToTop3(f.title)}>
+                        <Icon name="plus" size={14} />
+                        加到今天三件事
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ol>
           ) : null}
           {brief.note ? <p class="small soft">{brief.note}</p> : null}
@@ -454,10 +591,10 @@ function BriefCard({ day }: { day: DayDoc | undefined }) {
         </div>
       ) : (
         <div class="stack" style={{ marginTop: '8px' }}>
-          <p class="small soft">教练读完你最近的记录和本周计划，告诉你今天最该做的三件事。</p>
+          <p class="small soft">教练读完你最近的记录和本周计划，告诉你今天最该做的三件事。晨间打卡后会自动生成。</p>
           <button type="button" class="btn" style={{ justifySelf: 'start' }} onClick={() => generateBrief()}>
             <Icon name="sparkle" />
-            生成今日简报
+            现在生成
           </button>
         </div>
       )}
@@ -529,7 +666,7 @@ function QuickLog() {
         <input
           id="quick-log"
           class="input"
-          placeholder="一句话记录：昨晚 12 点睡，起来铺了 3 次"
+          placeholder="如：昨晚 12 点睡，重铺 3 次"
           value={text}
           onInput={(e) => setText((e.target as HTMLInputElement).value)}
           enterKeyHint="send"
@@ -547,7 +684,7 @@ function QuickLog() {
           </p>
           <div class="row wrap">
             {describePatch(parsed.patch).map((x) => (
-              <span class="pill" key={x}>
+              <span class="pill wrap" key={x}>
                 {x}
               </span>
             ))}
@@ -643,13 +780,15 @@ function StatusTiles() {
   const gutBad = last7.filter((d) => (all[d]?.gut?.discomfort ?? 0) >= 4).length;
   const energyAm = avg(last7.map((d) => all[d]?.energy?.am));
   const energyPm = avg(last7.map((d) => all[d]?.energy?.pm));
-  const week = computeWeekStats(weekStartOf(date), all, t);
+  const strength7 = last7.filter((d) => (all[d]?.habits?.exerciseMin ?? 0) >= 15).length;
+  const move7 = last7.reduce((a, d) => a + moveMinutes(all[d]), 0);
   const w = latestWeight(all);
   const w4 = latestWeight(all, addDays(date, -28));
   const b = bmi(w?.kg, profile.value.heightCm);
   const weightSeries = rangeDates(addDays(date, -55), date)
     .map((d) => all[d]?.weightKg)
     .filter((v): v is number => v !== undefined);
+  const weighedThisWeek = !!w && w.date >= addDays(date, -6);
 
   const tiles = [
     {
@@ -658,13 +797,13 @@ function StatusTiles() {
       icon: 'moon',
       value: sleep7 !== undefined ? `${round1(sleep7)}` : '—',
       unit: sleep7 !== undefined ? '小时' : '',
-      sub: sleep7 !== undefined ? '近 7 晚平均' : '还没有记录',
+      sub: sleep7 !== undefined ? '每晚平均' : '还没有记录',
       spark: last14.map((d) => sleepHours(all[d]?.sleep)),
       color: 'var(--c-sleep)',
     },
     {
       key: 'refit',
-      label: '起来重铺',
+      label: '重铺',
       icon: 'bed',
       value: refit7 !== undefined ? `${round1(refit7)}` : '—',
       unit: refit7 !== undefined ? '次/晚' : '',
@@ -683,7 +822,6 @@ function StatusTiles() {
         : '每周称一次就够',
       spark: weightSeries,
       color: 'var(--c-food)',
-      action: () => openSheet('weight'),
     },
     {
       key: 'gut',
@@ -691,7 +829,7 @@ function StatusTiles() {
       icon: 'drop',
       value: gut7 !== undefined ? `${round1(gut7)}` : '—',
       unit: gut7 !== undefined ? '/10' : '',
-      sub: gut7 !== undefined ? `≥4 分 ${gutBad} 天` : '晚间打卡时记',
+      sub: gut7 !== undefined ? (gutBad ? `有 ${gutBad} 天 ≥4` : '都在 4 分以下') : '晚间打卡时记',
       spark: last14.map((d) => all[d]?.gut?.discomfort),
       color: 'var(--c-food)',
     },
@@ -701,7 +839,10 @@ function StatusTiles() {
       icon: 'lightning',
       value: energyPm !== undefined || energyAm !== undefined ? `${round1(avg([energyAm, energyPm])!)}` : '—',
       unit: energyPm !== undefined || energyAm !== undefined ? '/5' : '',
-      sub: energyAm !== undefined || energyPm !== undefined ? `早 ${energyAm !== undefined ? round1(energyAm) : '—'} · 午 ${energyPm !== undefined ? round1(energyPm) : '—'}` : '打卡时记',
+      sub:
+        energyAm !== undefined || energyPm !== undefined
+          ? `早上 ${energyAm !== undefined ? round1(energyAm) : '—'} · 下午 ${energyPm !== undefined ? round1(energyPm) : '—'}`
+          : '打卡时记',
       spark: last14.map((d) => avg([all[d]?.energy?.am, all[d]?.energy?.pm])),
       color: 'var(--c-calm)',
     },
@@ -709,13 +850,10 @@ function StatusTiles() {
       key: 'exercise',
       label: '力量训练',
       icon: 'dumbbell',
-      value: `${week.exerciseSessions}`,
-      unit: `/${t.exercisePerWeek} 次`,
-      sub: `本周活动 ${week.moveMin} 分钟`,
-      spark: last14.map((d) => {
-        const h = all[d]?.habits;
-        return (h?.exerciseMin ?? 0) + (h?.walkMin ?? 0) + (h?.postureMin ?? 0) || undefined;
-      }),
+      value: `${strength7}`,
+      unit: ` 次`,
+      sub: `目标每周 ${t.exercisePerWeek} 次 · 活动 ${move7} 分钟`,
+      spark: last14.map((d) => moveMinutes(all[d]) || undefined),
       color: 'var(--c-move)',
     },
   ];
@@ -723,14 +861,16 @@ function StatusTiles() {
   return (
     <section class="stack" style={{ order: 9 }} aria-label="身体状态">
       <div class="section-head">
-        <h2>身体状态</h2>
+        <h2>
+          身体状态 <span class="small muted" style={{ fontFamily: 'var(--font-body)', fontWeight: 400 }}>近 7 天</span>
+        </h2>
         <button type="button" class="link" onClick={() => go('trends')}>
           看趋势
         </button>
       </div>
       <div class="tiles">
         {tiles.map((tile) => (
-          <button type="button" class="tile" key={tile.key} onClick={tile.action ?? (() => go('trends'))}>
+          <button type="button" class="tile" key={tile.key} onClick={() => go('trends')}>
             <span class="label">
               <Icon name={tile.icon} size={14} />
               {tile.label}
@@ -744,7 +884,7 @@ function StatusTiles() {
           </button>
         ))}
       </div>
-      {w ? null : (
+      {weighedThisWeek ? null : (
         <button type="button" class="btn sm" style={{ justifySelf: 'start' }} onClick={() => openSheet('weight')}>
           <Icon name="scale" />
           记一次体重
